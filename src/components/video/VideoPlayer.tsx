@@ -25,6 +25,8 @@ export function VideoPlayer({
   const [passthrough, setPassthrough] = useState(false);
   const [seekAnim, setSeekAnim] = useState<null | "left" | "right">(null);
   const [tapAnim, setTapAnim] = useState<"play" | "pause" | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const playerRef = useRef<any>(null);
   const lastTapRef = useRef({ time: 0, zone: "" });
@@ -42,7 +44,6 @@ export function VideoPlayer({
       : "aspect-video w-full";
 
   // Gesture sonrası overlay'i 4 saniye devre dışı bırak
-  // Bu sürede BunnyCDN kontrolleri (progressbar vs.) kullanılabilir
   const enablePassthrough = useCallback(() => {
     setPassthrough(true);
     if (passthroughTimer.current) clearTimeout(passthroughTimer.current);
@@ -52,14 +53,32 @@ export function VideoPlayer({
     );
   }, []);
 
-  // Fullscreen → landscape (mobil)
+  // Fullscreen: iframe fullscreen olursa yakala, kendi container'ımızı fullscreen yap
+  // Böylece overlay her zaman üstte kalır ve gesture'lar fullscreen'de de çalışır
   useEffect(() => {
-    const onFs = () => {
-      const so = screen.orientation as any;
-      if (document.fullscreenElement) {
-        so?.lock?.("landscape").catch(() => {});
-      } else {
-        so?.unlock?.();
+    const onFs = async () => {
+      const fsElem = document.fullscreenElement;
+
+      // BunnyCDN iframe fullscreen olduysa → çık, container'ı fullscreen yap
+      if (fsElem && fsElem === iframeRef.current && containerRef.current) {
+        try {
+          await document.exitFullscreen();
+          await containerRef.current.requestFullscreen();
+        } catch {}
+        return;
+      }
+
+      // Kendi container'ımız fullscreen
+      if (fsElem === containerRef.current) {
+        setIsFullscreen(true);
+        (screen.orientation as any)?.lock?.("landscape").catch(() => {});
+        return;
+      }
+
+      // Fullscreen'den çıkış
+      if (!fsElem) {
+        setIsFullscreen(false);
+        (screen.orientation as any)?.unlock?.();
       }
     };
     document.addEventListener("fullscreenchange", onFs);
@@ -117,7 +136,6 @@ export function VideoPlayer({
         }
         setSeekAnim("left");
         setTimeout(() => setSeekAnim(null), 350);
-        // Seek sonrası passthrough aç (animasyon bitince)
         setTimeout(() => enablePassthrough(), 400);
         return;
       }
@@ -207,7 +225,10 @@ export function VideoPlayer({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-xl bg-black ${aspectClass}`}
+      ref={containerRef}
+      className={`relative overflow-hidden bg-black ${
+        isFullscreen ? "" : `rounded-xl ${aspectClass}`
+      }`}
     >
       {/* BunnyCDN iframe player */}
       <iframe
@@ -220,11 +241,7 @@ export function VideoPlayer({
         title={title}
       />
 
-      {/* Gesture overlay
-          - Normal: tüm dokunmaları yakalar (gesture detection)
-          - Passthrough: pointer-events-none → dokunmalar iframe'e geçer
-            → BunnyCDN kontrolleri (progressbar, ses, fullscreen) erişilebilir
-      */}
+      {/* Gesture overlay */}
       <div
         className={`absolute inset-0 z-10 flex select-none ${
           passthrough ? "pointer-events-none" : "pointer-events-auto"
