@@ -1,16 +1,16 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Static export for Cloudflare Pages deployment
-  // Will switch to OpenNext (@opennextjs/cloudflare) when SSR is needed
-  output: "export",
+  // SSR mode - OpenNext for Cloudflare Pages
+  // Build: npx opennextjs-cloudflare build
+  // Deploy: npx opennextjs-cloudflare deploy
 
   // Fix workspace root detection (parent has a lockfile too)
   turbopack: {
     root: __dirname,
   },
 
-  // Image optimization (unoptimized for static export, BunnyCDN handles optimization)
+  // BunnyCDN handles image optimization
   images: {
     unoptimized: true,
     remotePatterns: [
@@ -24,9 +24,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-
-  // Note: headers() not supported with static export
-  // Security headers are set via public/_headers for Cloudflare Pages
 };
 
 export default nextConfig;

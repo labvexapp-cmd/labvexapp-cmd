@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { Grid3X3 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { mockCategories } from "@/lib/mock-data";
+import { getCategories } from "@/lib/queries";
 import { formatViewCount } from "@/lib/constants";
 
-export default function KategorilerPage() {
+export const revalidate = 60;
+
+export default async function KategorilerPage() {
+  const categories = await getCategories();
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-4 md:py-6">
       {/* Page header */}
@@ -20,7 +23,7 @@ export default function KategorilerPage() {
 
       {/* Category grid */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-        {mockCategories.map((category) => (
+        {categories.map((category) => (
           <Link
             key={category.id}
             href={`/kategori/${category.slug}`}

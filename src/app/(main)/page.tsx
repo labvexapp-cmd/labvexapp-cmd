@@ -1,15 +1,25 @@
 import { VideoGrid } from "@/components/video/VideoGrid";
 import { CategoryScroll } from "@/components/home/CategoryScroll";
 import { StarScroll } from "@/components/home/StarScroll";
-import { mockVideos, mockCategories, mockStars } from "@/lib/mock-data";
-import { TrendingUp, Clock, Flame } from "lucide-react";
+import { getVideos, getCategories, getStars } from "@/lib/queries";
+import { Flame } from "lucide-react";
 import { generateWebsiteJsonLd } from "@/lib/seo";
 
-export default function HomePage() {
+// ISR: 60 saniyede bir revalidate
+export const revalidate = 60;
+
+export default async function HomePage() {
   const jsonLd = generateWebsiteJsonLd();
-  const trendingVideos = mockVideos.slice(0, 8);
-  const newVideos = mockVideos.slice(8, 16);
-  const popularVideos = mockVideos.slice(16, 24);
+
+  // Paralel Supabase sorguları
+  const [trendingVideos, newVideos, popularVideos, categories, stars] =
+    await Promise.all([
+      getVideos("view_count", 8),
+      getVideos("created_at", 8),
+      getVideos("like_count", 8),
+      getCategories(),
+      getStars(),
+    ]);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-4 md:py-6">
@@ -19,7 +29,7 @@ export default function HomePage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      {/* Hero section - featured/trending banner */}
+      {/* Hero section */}
       <section className="mb-6 overflow-hidden rounded-2xl bg-gradient-to-r from-primary/20 via-card to-accent/20 p-6 md:p-8">
         <div className="flex items-center gap-2 text-primary">
           <Flame className="h-6 w-6" />
@@ -33,41 +43,51 @@ export default function HomePage() {
       </section>
 
       {/* Categories horizontal scroll */}
-      <div className="mb-6">
-        <CategoryScroll categories={mockCategories} />
-      </div>
+      {categories.length > 0 && (
+        <div className="mb-6">
+          <CategoryScroll categories={categories} />
+        </div>
+      )}
 
       {/* Trending videos */}
-      <div className="mb-8">
-        <VideoGrid
-          videos={trendingVideos}
-          title="Trend Videolar"
-          columns={4}
-        />
-      </div>
+      {trendingVideos.length > 0 && (
+        <div className="mb-8">
+          <VideoGrid
+            videos={trendingVideos}
+            title="Trend Videolar"
+            columns={4}
+          />
+        </div>
+      )}
 
       {/* Popular stars */}
-      <div className="mb-8">
-        <StarScroll stars={mockStars} />
-      </div>
+      {stars.length > 0 && (
+        <div className="mb-8">
+          <StarScroll stars={stars} />
+        </div>
+      )}
 
       {/* New videos */}
-      <div className="mb-8">
-        <VideoGrid
-          videos={newVideos}
-          title="Yeni Eklenenler"
-          columns={4}
-        />
-      </div>
+      {newVideos.length > 0 && (
+        <div className="mb-8">
+          <VideoGrid
+            videos={newVideos}
+            title="Yeni Eklenenler"
+            columns={4}
+          />
+        </div>
+      )}
 
       {/* Most viewed */}
-      <div className="mb-8">
-        <VideoGrid
-          videos={popularVideos}
-          title="En Çok İzlenenler"
-          columns={4}
-        />
-      </div>
+      {popularVideos.length > 0 && (
+        <div className="mb-8">
+          <VideoGrid
+            videos={popularVideos}
+            title="En Çok İzlenenler"
+            columns={4}
+          />
+        </div>
+      )}
     </div>
   );
 }

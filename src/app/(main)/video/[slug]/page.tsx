@@ -1,14 +1,10 @@
 import type { Metadata } from "next";
-import { mockVideos } from "@/lib/mock-data";
+import { notFound } from "next/navigation";
+import { getVideoBySlug, getRelatedVideos } from "@/lib/queries";
 import { generateVideoJsonLd, generateVideoMeta, generateBreadcrumbJsonLd } from "@/lib/seo";
 import { VideoPageClient } from "./VideoPageClient";
 
-// Generate static params for all mock videos (required for static export)
-export function generateStaticParams() {
-  return mockVideos.map((video) => ({
-    slug: video.slug,
-  }));
-}
+export const revalidate = 60;
 
 // Dynamic metadata for each video page (SEO)
 export async function generateMetadata({
@@ -17,7 +13,8 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const video = mockVideos.find((v) => v.slug === slug) || mockVideos[0];
+  const video = await getVideoBySlug(slug);
+  if (!video) return { title: "Video Bulunamadı" };
   return generateVideoMeta(video);
 }
 
@@ -28,9 +25,10 @@ export default async function VideoPage({
 }) {
   const { slug } = await params;
 
-  // Find video by slug (will be replaced with DB query)
-  const video = mockVideos.find((v) => v.slug === slug) || mockVideos[0];
-  const relatedVideos = mockVideos.filter((v) => v.id !== video.id).slice(0, 8);
+  const video = await getVideoBySlug(slug);
+  if (!video) notFound();
+
+  const relatedVideos = await getRelatedVideos(video.id, 8);
 
   // JSON-LD structured data
   const videoJsonLd = generateVideoJsonLd(video);

@@ -1,9 +1,13 @@
 import Link from "next/link";
 import { Star, Eye } from "lucide-react";
-import { mockStars } from "@/lib/mock-data";
+import { getStars } from "@/lib/queries";
 import { formatViewCount } from "@/lib/constants";
 
-export default function StarlarPage() {
+export const revalidate = 60;
+
+export default async function StarlarPage() {
+  const stars = await getStars();
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-4 md:py-6">
       {/* Page header */}
@@ -19,7 +23,7 @@ export default function StarlarPage() {
 
       {/* Star grid */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-        {mockStars.map((star) => (
+        {stars.map((star) => (
           <Link
             key={star.id}
             href={`/star/${star.slug}`}

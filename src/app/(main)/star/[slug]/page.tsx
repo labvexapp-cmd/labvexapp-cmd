@@ -1,12 +1,8 @@
-import { mockStars, mockVideos } from "@/lib/mock-data";
+import { notFound } from "next/navigation";
+import { getStarBySlug, getStarVideos } from "@/lib/queries";
 import { StarPageClient } from "./StarPageClient";
 
-// Generate static params for all stars
-export function generateStaticParams() {
-  return mockStars.map((star) => ({
-    slug: star.slug,
-  }));
-}
+export const revalidate = 60;
 
 export default async function StarPage({
   params,
@@ -15,14 +11,10 @@ export default async function StarPage({
 }) {
   const { slug } = await params;
 
-  const star = mockStars.find((s) => s.slug === slug) || mockStars[0];
+  const star = await getStarBySlug(slug);
+  if (!star) notFound();
 
-  // Filter videos by star (mock: show random subset)
-  const starVideos = mockVideos.filter((v) =>
-    v.stars.some((s) => s.slug === star.slug)
-  );
-  // If no exact match, show all videos as fallback
-  const videos = starVideos.length > 0 ? starVideos : mockVideos;
+  const videos = await getStarVideos(star.id);
 
   return <StarPageClient star={star} videos={videos} />;
 }
