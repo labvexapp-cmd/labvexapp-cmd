@@ -3,14 +3,22 @@ import { CategoryScroll } from "@/components/home/CategoryScroll";
 import { StarScroll } from "@/components/home/StarScroll";
 import { mockVideos, mockCategories, mockStars } from "@/lib/mock-data";
 import { TrendingUp, Clock, Flame } from "lucide-react";
+import { generateWebsiteJsonLd } from "@/lib/seo";
 
 export default function HomePage() {
+  const jsonLd = generateWebsiteJsonLd();
   const trendingVideos = mockVideos.slice(0, 8);
   const newVideos = mockVideos.slice(8, 16);
   const popularVideos = mockVideos.slice(16, 24);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-4 md:py-6">
+      {/* JSON-LD structured data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
       {/* Hero section - featured/trending banner */}
       <section className="mb-6 overflow-hidden rounded-2xl bg-gradient-to-r from-primary/20 via-card to-accent/20 p-6 md:p-8">
         <div className="flex items-center gap-2 text-primary">
