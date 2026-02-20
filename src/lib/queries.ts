@@ -27,7 +27,7 @@ function mapVideo(row: any): Video {
     orientation: row.orientation || "horizontal",
     thumbnail_url: row.thumbnail_url || `${cdnBase}/${row.bunny_video_id}/thumbnail.jpg`,
     preview_url: row.preview_url || undefined,
-    video_url: row.video_url || "",
+    video_url: row.video_url || (row.bunny_video_id ? `${cdnBase}/${row.bunny_video_id}/playlist.m3u8` : ""),
     view_count: row.view_count || 0,
     like_count: row.like_count || 0,
     comment_count: row.comment_count || 0,

@@ -105,7 +105,7 @@ export function VideoPageClient({ video, relatedVideos }: VideoPageClientProps) 
         {/* Main content */}
         <div className="lg:col-span-2">
           {/* Video Player */}
-          <VideoPlayer title={video.title} orientation={video.orientation} />
+          <VideoPlayer videoUrl={video.video_url} title={video.title} orientation={video.orientation} />
 
           {/* Video Info */}
           <div className="px-4 md:px-0">
