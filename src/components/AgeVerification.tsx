@@ -10,7 +10,9 @@ export function AgeVerification() {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
-    const verified = localStorage.getItem(STORAGE_KEY);
+    const verified =
+      localStorage.getItem(STORAGE_KEY) ||
+      sessionStorage.getItem(STORAGE_KEY);
     if (!verified) {
       setShow(true);
     }
