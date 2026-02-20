@@ -25,8 +25,6 @@ export function VideoPlayer({
   const [passthrough, setPassthrough] = useState(false);
   const [seekAnim, setSeekAnim] = useState<null | "left" | "right">(null);
   const [tapAnim, setTapAnim] = useState<"play" | "pause" | null>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const playerRef = useRef<any>(null);
   const lastTapRef = useRef({ time: 0, zone: "" });
@@ -35,7 +33,7 @@ export function VideoPlayer({
 
   const resolvedBunnyId = bunnyVideoId || extractBunnyId(videoUrl);
   const embedUrl = resolvedBunnyId
-    ? `https://iframe.mediadelivery.net/embed/${LIBRARY_ID}/${resolvedBunnyId}?autoplay=true&preload=true&responsive=true&pip=false`
+    ? `https://iframe.mediadelivery.net/embed/${LIBRARY_ID}/${resolvedBunnyId}?autoplay=true&preload=true&responsive=true`
     : null;
 
   const aspectClass =
@@ -43,7 +41,7 @@ export function VideoPlayer({
       ? "mx-auto aspect-[9/16] max-h-[80vh]"
       : "aspect-video w-full";
 
-  // Gesture sonrası overlay'i 4 saniye devre dışı bırak
+  // Gesture sonrası overlay'i devre dışı bırak - BunnyCDN kontrolleri erişilebilir olsun
   const enablePassthrough = useCallback(() => {
     setPassthrough(true);
     if (passthroughTimer.current) clearTimeout(passthroughTimer.current);
@@ -51,38 +49,6 @@ export function VideoPlayer({
       () => setPassthrough(false),
       PASSTHROUGH_MS
     );
-  }, []);
-
-  // Fullscreen: iframe fullscreen olursa yakala, kendi container'ımızı fullscreen yap
-  // Böylece overlay her zaman üstte kalır ve gesture'lar fullscreen'de de çalışır
-  useEffect(() => {
-    const onFs = async () => {
-      const fsElem = document.fullscreenElement;
-
-      // BunnyCDN iframe fullscreen olduysa → çık, container'ı fullscreen yap
-      if (fsElem && fsElem === iframeRef.current && containerRef.current) {
-        try {
-          await document.exitFullscreen();
-          await containerRef.current.requestFullscreen();
-        } catch {}
-        return;
-      }
-
-      // Kendi container'ımız fullscreen
-      if (fsElem === containerRef.current) {
-        setIsFullscreen(true);
-        (screen.orientation as any)?.lock?.("landscape").catch(() => {});
-        return;
-      }
-
-      // Fullscreen'den çıkış
-      if (!fsElem) {
-        setIsFullscreen(false);
-        (screen.orientation as any)?.unlock?.();
-      }
-    };
-    document.addEventListener("fullscreenchange", onFs);
-    return () => document.removeEventListener("fullscreenchange", onFs);
   }, []);
 
   // Cleanup timers
@@ -224,12 +190,7 @@ export function VideoPlayer({
   }
 
   return (
-    <div
-      ref={containerRef}
-      className={`relative overflow-hidden bg-black ${
-        isFullscreen ? "" : `rounded-xl ${aspectClass}`
-      }`}
-    >
+    <div className={`relative overflow-hidden rounded-xl bg-black ${aspectClass}`}>
       {/* BunnyCDN iframe player */}
       <iframe
         ref={iframeRef}
@@ -241,7 +202,7 @@ export function VideoPlayer({
         title={title}
       />
 
-      {/* Gesture overlay */}
+      {/* Gesture overlay - sadece normal modda çalışır, fullscreen'de BunnyCDN kendi kontrollerini kullanır */}
       <div
         className={`absolute inset-0 z-10 flex select-none ${
           passthrough ? "pointer-events-none" : "pointer-events-auto"
@@ -254,7 +215,7 @@ export function VideoPlayer({
 
       {/* -5s animasyonu */}
       {seekAnim === "left" && (
-        <div className="pointer-events-none absolute left-6 top-1/2 z-20 -translate-y-1/2">
+        <div className="pointer-events-none absolute left-6 top-1/2 z-20 -translate-y-1/2 animate-in fade-in zoom-in duration-150">
           <div className="flex flex-col items-center gap-1">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black/60 backdrop-blur-sm">
               <RotateCcw className="h-5 w-5 text-white" />
@@ -268,7 +229,7 @@ export function VideoPlayer({
 
       {/* +5s animasyonu */}
       {seekAnim === "right" && (
-        <div className="pointer-events-none absolute right-6 top-1/2 z-20 -translate-y-1/2">
+        <div className="pointer-events-none absolute right-6 top-1/2 z-20 -translate-y-1/2 animate-in fade-in zoom-in duration-150">
           <div className="flex flex-col items-center gap-1">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black/60 backdrop-blur-sm">
               <RotateCw className="h-5 w-5 text-white" />
@@ -282,7 +243,7 @@ export function VideoPlayer({
 
       {/* Play/Pause animasyonu */}
       {tapAnim && (
-        <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2">
+        <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2 animate-in fade-in zoom-in duration-150">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-black/50 backdrop-blur-sm">
             {tapAnim === "pause" ? (
               <Pause className="h-6 w-6 text-white" fill="white" />
