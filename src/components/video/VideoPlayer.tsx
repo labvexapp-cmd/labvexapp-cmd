@@ -25,11 +25,14 @@ export function VideoPlayer({
   const [passthrough, setPassthrough] = useState(false);
   const [seekAnim, setSeekAnim] = useState<null | "left" | "right">(null);
   const [tapAnim, setTapAnim] = useState<"play" | "pause" | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const playerRef = useRef<any>(null);
   const lastTapRef = useRef({ time: 0, zone: "" });
   const sideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const passthroughTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const redirectingRef = useRef(false);
 
   const resolvedBunnyId = bunnyVideoId || extractBunnyId(videoUrl);
   const embedUrl = resolvedBunnyId
@@ -41,7 +44,7 @@ export function VideoPlayer({
       ? "mx-auto aspect-[9/16] max-h-[80vh]"
       : "aspect-video w-full";
 
-  // Gesture sonrası overlay'i devre dışı bırak - BunnyCDN kontrolleri erişilebilir olsun
+  // Gesture sonrası overlay'i devre dışı bırak
   const enablePassthrough = useCallback(() => {
     setPassthrough(true);
     if (passthroughTimer.current) clearTimeout(passthroughTimer.current);
@@ -49,6 +52,52 @@ export function VideoPlayer({
       () => setPassthrough(false),
       PASSTHROUGH_MS
     );
+  }, []);
+
+  // Fullscreen: BunnyCDN iframe fullscreen olursa container'a yönlendir
+  // Böylece gesture overlay her zaman görünür kalır
+  useEffect(() => {
+    const onFs = async () => {
+      // Redirect sırasında tekrar tetiklenmeyi önle
+      if (redirectingRef.current) return;
+
+      const fsElem = document.fullscreenElement;
+
+      // BunnyCDN iframe fullscreen olduysa → container'a yönlendir
+      if (fsElem && fsElem === iframeRef.current && containerRef.current) {
+        redirectingRef.current = true;
+        try {
+          await document.exitFullscreen();
+          // Tarayıcının işlemesi için kısa bekleme
+          await new Promise((r) => setTimeout(r, 50));
+          await containerRef.current.requestFullscreen();
+        } catch {
+          // Sessiz hata - fullscreen desteklenmiyorsa
+        }
+        redirectingRef.current = false;
+        return;
+      }
+
+      // Kendi container'ımız fullscreen oldu
+      if (fsElem === containerRef.current) {
+        setIsFullscreen(true);
+        try {
+          await (screen.orientation as any)?.lock?.("landscape");
+        } catch {}
+        return;
+      }
+
+      // Fullscreen'den çıkış
+      if (!fsElem) {
+        setIsFullscreen(false);
+        try {
+          (screen.orientation as any)?.unlock?.();
+        } catch {}
+      }
+    };
+
+    document.addEventListener("fullscreenchange", onFs);
+    return () => document.removeEventListener("fullscreenchange", onFs);
   }, []);
 
   // Cleanup timers
@@ -190,27 +239,44 @@ export function VideoPlayer({
   }
 
   return (
-    <div className={`relative overflow-hidden rounded-xl bg-black ${aspectClass}`}>
+    <div
+      ref={containerRef}
+      className={`relative overflow-hidden bg-black ${
+        isFullscreen ? "" : `rounded-xl ${aspectClass}`
+      }`}
+    >
       {/* BunnyCDN iframe player */}
       <iframe
         ref={iframeRef}
         src={embedUrl}
         loading="lazy"
-        className="absolute inset-0 h-full w-full border-0"
+        className={`absolute inset-0 border-0 ${
+          isFullscreen ? "h-full w-full" : "h-full w-full"
+        }`}
         allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen"
         allowFullScreen
         title={title}
       />
 
-      {/* Gesture overlay - sadece normal modda çalışır, fullscreen'de BunnyCDN kendi kontrollerini kullanır */}
+      {/* Gesture overlay - touch-action: manipulation tarayıcının double-tap zoom'unu engeller */}
       <div
         className={`absolute inset-0 z-10 flex select-none ${
           passthrough ? "pointer-events-none" : "pointer-events-auto"
         }`}
+        style={{ touchAction: "manipulation" }}
       >
-        <div className="flex-1" onClick={() => handleGesture("left")} />
-        <div className="flex-[2]" onClick={() => handleGesture("center")} />
-        <div className="flex-1" onClick={() => handleGesture("right")} />
+        <div
+          className="h-full flex-1"
+          onClick={() => handleGesture("left")}
+        />
+        <div
+          className="h-full flex-[2]"
+          onClick={() => handleGesture("center")}
+        />
+        <div
+          className="h-full flex-1"
+          onClick={() => handleGesture("right")}
+        />
       </div>
 
       {/* -5s animasyonu */}
