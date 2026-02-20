@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Play, Pause, RotateCcw, RotateCw, Maximize, Minimize } from "lucide-react";
+import { Play, Pause, RotateCcw, RotateCw } from "lucide-react";
 
 interface VideoPlayerProps {
   videoUrl?: string;
@@ -12,7 +12,7 @@ interface VideoPlayerProps {
 }
 
 const LIBRARY_ID = "603403";
-const CONTROLS_TIMEOUT = 4000;
+const PASSTHROUGH_MS = 4000;
 
 export function VideoPlayer({
   videoUrl,
@@ -22,18 +22,14 @@ export function VideoPlayer({
   orientation,
 }: VideoPlayerProps) {
   const [started, setStarted] = useState(false);
-  const [controlsVisible, setControlsVisible] = useState(true);
+  const [passthrough, setPassthrough] = useState(false);
   const [seekAnim, setSeekAnim] = useState<null | "left" | "right">(null);
   const [tapAnim, setTapAnim] = useState<"play" | "pause" | null>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-
-  const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const playerRef = useRef<any>(null);
   const lastTapRef = useRef({ time: 0, zone: "" });
-  const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const controlsVisibleRef = useRef(true);
+  const passthroughTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const resolvedBunnyId = bunnyVideoId || extractBunnyId(videoUrl);
   const embedUrl = resolvedBunnyId
@@ -45,47 +41,24 @@ export function VideoPlayer({
       ? "mx-auto aspect-[9/16] max-h-[80vh]"
       : "aspect-video w-full";
 
-  // === Controls visibility ===
-  const showControls = useCallback(() => {
-    controlsVisibleRef.current = true;
-    setControlsVisible(true);
-    if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
-    controlsTimerRef.current = setTimeout(() => {
-      controlsVisibleRef.current = false;
-      setControlsVisible(false);
-    }, CONTROLS_TIMEOUT);
+  // Gesture sonrası overlay'i 4 saniye devre dışı bırak
+  // Bu sürede BunnyCDN kontrolleri (progressbar vs.) kullanılabilir
+  const enablePassthrough = useCallback(() => {
+    setPassthrough(true);
+    if (passthroughTimer.current) clearTimeout(passthroughTimer.current);
+    passthroughTimer.current = setTimeout(
+      () => setPassthrough(false),
+      PASSTHROUGH_MS
+    );
   }, []);
 
-  const hideControls = useCallback(() => {
-    controlsVisibleRef.current = false;
-    setControlsVisible(false);
-    if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
-  }, []);
-
-  // === Fullscreen (kendi container'ımızı fullscreen yapıyoruz) ===
-  const toggleFullscreen = useCallback(async () => {
-    if (!containerRef.current) return;
-    try {
-      if (document.fullscreenElement) {
-        await document.exitFullscreen();
-      } else {
-        await containerRef.current.requestFullscreen();
-      }
-    } catch (err) {
-      console.warn("Fullscreen error:", err);
-    }
-  }, []);
-
-  // Fullscreen change → landscape lock (sadece kendi container'ımız için)
+  // Fullscreen → landscape (mobil)
   useEffect(() => {
     const onFs = () => {
-      const fsElem = document.fullscreenElement;
-      const isFull = fsElem === containerRef.current;
-      setIsFullscreen(isFull);
       const so = screen.orientation as any;
-      if (isFull) {
+      if (document.fullscreenElement) {
         so?.lock?.("landscape").catch(() => {});
-      } else if (!fsElem) {
+      } else {
         so?.unlock?.();
       }
     };
@@ -93,11 +66,11 @@ export function VideoPlayer({
     return () => document.removeEventListener("fullscreenchange", onFs);
   }, []);
 
-  // Video başladığında 4 saniye controls göster
+  // Video başladığında 4 saniye passthrough (BunnyCDN kontrolleri erişilebilir)
   useEffect(() => {
     if (!started) return;
-    showControls();
-  }, [started, showControls]);
+    enablePassthrough();
+  }, [started, enablePassthrough]);
 
   // player.js init
   useEffect(() => {
@@ -122,7 +95,7 @@ export function VideoPlayer({
     };
   }, [started]);
 
-  // === Gesture handler ===
+  // Gesture handler
   const handleGesture = useCallback(
     (zone: "left" | "center" | "right") => {
       const now = Date.now();
@@ -132,7 +105,7 @@ export function VideoPlayer({
 
       const player = playerRef.current;
 
-      // Çift tap sol → -5 saniye
+      // Çift tap sol → -5s
       if (isDouble && zone === "left") {
         if (sideTimerRef.current) clearTimeout(sideTimerRef.current);
         if (player) {
@@ -141,24 +114,24 @@ export function VideoPlayer({
           );
         }
         setSeekAnim("left");
-        setTimeout(() => setSeekAnim(null), 700);
-        showControls();
+        setTimeout(() => setSeekAnim(null), 350);
+        enablePassthrough();
         return;
       }
 
-      // Çift tap sağ → +5 saniye
+      // Çift tap sağ → +5s
       if (isDouble && zone === "right") {
         if (sideTimerRef.current) clearTimeout(sideTimerRef.current);
         if (player) {
           player.getCurrentTime((t: number) => player.setCurrentTime(t + 5));
         }
         setSeekAnim("right");
-        setTimeout(() => setSeekAnim(null), 700);
-        showControls();
+        setTimeout(() => setSeekAnim(null), 350);
+        enablePassthrough();
         return;
       }
 
-      // Tek tap center → anında play/pause + controls göster
+      // Tek tap center → anında play/pause
       if (zone === "center") {
         if (player) {
           player.getPaused((paused: boolean) => {
@@ -169,30 +142,21 @@ export function VideoPlayer({
               player.pause();
               setTapAnim("pause");
             }
-            setTimeout(() => setTapAnim(null), 700);
+            setTimeout(() => setTapAnim(null), 400);
           });
         }
-        showControls();
+        enablePassthrough();
         return;
       }
 
-      // Tek tap sol/sağ → controls göster/gizle (300ms çift tap ayrımı)
-      if (sideTimerRef.current) clearTimeout(sideTimerRef.current);
-      sideTimerRef.current = setTimeout(() => {
-        if (lastTapRef.current.time !== now) return;
-        if (controlsVisibleRef.current) {
-          hideControls();
-        } else {
-          showControls();
-        }
-      }, 300);
+      // Tek tap sol/sağ → sadece passthrough aç (kontrolleri göster)
+      enablePassthrough();
     },
-    [showControls, hideControls]
+    [enablePassthrough]
   );
 
   // ===== RENDER =====
 
-  // Video URL yoksa placeholder
   if (!embedUrl) {
     return (
       <div
@@ -212,7 +176,6 @@ export function VideoPlayer({
     );
   }
 
-  // Başlamadan önce thumbnail + play butonu
   if (!started) {
     return (
       <div
@@ -235,13 +198,9 @@ export function VideoPlayer({
     );
   }
 
-  // BunnyCDN iframe + gesture overlay
   return (
     <div
-      ref={containerRef}
-      className={`relative overflow-hidden bg-black ${
-        isFullscreen ? "" : `rounded-xl ${aspectClass}`
-      }`}
+      className={`relative overflow-hidden rounded-xl bg-black ${aspectClass}`}
     >
       {/* BunnyCDN iframe player */}
       <iframe
@@ -254,64 +213,27 @@ export function VideoPlayer({
         title={title}
       />
 
-      {/* Gesture overlay - üst alan (BunnyCDN kontrolleri hariç) */}
-      <div className="absolute top-0 right-0 left-0 bottom-14 z-10 flex select-none">
-        {/* Sol bölge: çift tap = -5s, tek tap = controls toggle */}
-        <div
-          className="flex-1 cursor-pointer"
-          onClick={() => handleGesture("left")}
-        />
-        {/* Orta bölge: tek tap = play/pause */}
-        <div
-          className="flex-[2] cursor-pointer"
-          onClick={() => handleGesture("center")}
-        />
-        {/* Sağ bölge: çift tap = +5s, tek tap = controls toggle */}
-        <div
-          className="flex-1 cursor-pointer"
-          onClick={() => handleGesture("right")}
-        />
-      </div>
-
-      {/* Alt overlay - controls gizliyken BunnyCDN kontrollerini bloklar */}
+      {/* Gesture overlay
+          - Normal: tüm dokunmaları yakalar (gesture detection)
+          - Passthrough: pointer-events-none → dokunmalar iframe'e geçer
+            → BunnyCDN kontrolleri (progressbar, ses, fullscreen) erişilebilir
+      */}
       <div
-        className={`absolute right-0 bottom-0 left-0 z-10 h-14 select-none ${
-          controlsVisible
-            ? "pointer-events-none"
-            : "pointer-events-auto cursor-pointer"
-        }`}
-        onClick={() => showControls()}
-      />
-
-      {/* Fullscreen butonu - controls görünürken göster */}
-      <div
-        className={`absolute bottom-16 right-3 z-20 transition-opacity duration-300 ${
-          controlsVisible
-            ? "pointer-events-auto opacity-100"
-            : "pointer-events-none opacity-0"
+        className={`absolute inset-0 z-10 flex select-none ${
+          passthrough ? "pointer-events-none" : "pointer-events-auto"
         }`}
       >
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleFullscreen();
-          }}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white/90 backdrop-blur-sm transition-colors hover:bg-black/80 hover:text-white"
-        >
-          {isFullscreen ? (
-            <Minimize className="h-4 w-4" />
-          ) : (
-            <Maximize className="h-4 w-4" />
-          )}
-        </button>
+        <div className="flex-1" onClick={() => handleGesture("left")} />
+        <div className="flex-[2]" onClick={() => handleGesture("center")} />
+        <div className="flex-1" onClick={() => handleGesture("right")} />
       </div>
 
-      {/* -5s seek animasyonu */}
+      {/* -5s animasyonu */}
       {seekAnim === "left" && (
-        <div className="pointer-events-none absolute left-6 top-1/2 z-20 -translate-y-1/2 animate-bounce">
+        <div className="pointer-events-none absolute left-6 top-1/2 z-20 -translate-y-1/2">
           <div className="flex flex-col items-center gap-1">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-black/60 backdrop-blur-sm">
-              <RotateCcw className="h-6 w-6 text-white" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black/60 backdrop-blur-sm">
+              <RotateCcw className="h-5 w-5 text-white" />
             </div>
             <span className="rounded-full bg-black/60 px-2 py-0.5 text-xs font-bold text-white backdrop-blur-sm">
               -5s
@@ -320,12 +242,12 @@ export function VideoPlayer({
         </div>
       )}
 
-      {/* +5s seek animasyonu */}
+      {/* +5s animasyonu */}
       {seekAnim === "right" && (
-        <div className="pointer-events-none absolute right-6 top-1/2 z-20 -translate-y-1/2 animate-bounce">
+        <div className="pointer-events-none absolute right-6 top-1/2 z-20 -translate-y-1/2">
           <div className="flex flex-col items-center gap-1">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-black/60 backdrop-blur-sm">
-              <RotateCw className="h-6 w-6 text-white" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black/60 backdrop-blur-sm">
+              <RotateCw className="h-5 w-5 text-white" />
             </div>
             <span className="rounded-full bg-black/60 px-2 py-0.5 text-xs font-bold text-white backdrop-blur-sm">
               +5s
@@ -334,14 +256,14 @@ export function VideoPlayer({
         </div>
       )}
 
-      {/* Play/Pause animasyonu - doğru ikon */}
+      {/* Play/Pause animasyonu */}
       {tapAnim && (
-        <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2 animate-ping">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-black/50 backdrop-blur-sm">
+        <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-black/50 backdrop-blur-sm">
             {tapAnim === "pause" ? (
-              <Pause className="h-7 w-7 text-white" fill="white" />
+              <Pause className="h-6 w-6 text-white" fill="white" />
             ) : (
-              <Play className="ml-1 h-7 w-7 text-white" fill="white" />
+              <Play className="ml-1 h-6 w-6 text-white" fill="white" />
             )}
           </div>
         </div>
