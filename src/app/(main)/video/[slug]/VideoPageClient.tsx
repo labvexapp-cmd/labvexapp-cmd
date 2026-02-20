@@ -15,6 +15,7 @@ import {
   Heart,
   Bookmark,
   Send,
+  User,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -83,8 +84,6 @@ export function VideoPageClient({ video, relatedVideos }: VideoPageClientProps) 
   const [isSaved, setIsSaved] = useState(false);
   const [commentText, setCommentText] = useState("");
 
-  const star = video.stars[0];
-
   const handleLike = () => {
     setIsLiked(!isLiked);
     if (isDisliked) setIsDisliked(false);
@@ -95,17 +94,24 @@ export function VideoPageClient({ video, relatedVideos }: VideoPageClientProps) 
     if (isLiked) setIsLiked(false);
   };
 
-  const likePercentage = Math.round(
-    (video.like_count / (video.like_count + video.comment_count)) * 100
-  );
+  // NaN fix: 0/0 durumunu kontrol et
+  const likeTotal = video.like_count + video.comment_count;
+  const likePercentage = likeTotal > 0
+    ? Math.round((video.like_count / likeTotal) * 100)
+    : 0;
 
   return (
     <div className="mx-auto max-w-7xl px-0 md:px-4 py-0 md:py-4">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Main content */}
         <div className="lg:col-span-2">
-          {/* Video Player */}
-          <VideoPlayer videoUrl={video.video_url} title={video.title} orientation={video.orientation} />
+          {/* Video Player - BunnyCDN iframe */}
+          <VideoPlayer
+            videoUrl={video.video_url}
+            thumbnailUrl={video.thumbnail_url}
+            title={video.title}
+            orientation={video.orientation}
+          />
 
           {/* Video Info */}
           <div className="px-4 md:px-0">
@@ -163,17 +169,19 @@ export function VideoPageClient({ video, relatedVideos }: VideoPageClientProps) 
               </Button>
 
               {/* Like bar */}
-              <div className="hidden items-center gap-2 sm:flex">
-                <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-primary"
-                    style={{ width: `${likePercentage}%` }}
-                  />
+              {likePercentage > 0 && (
+                <div className="hidden items-center gap-2 sm:flex">
+                  <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-primary"
+                      style={{ width: `${likePercentage}%` }}
+                    />
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    %{likePercentage}
+                  </span>
                 </div>
-                <span className="text-xs text-muted-foreground">
-                  %{likePercentage}
-                </span>
-              </div>
+              )}
 
               <div className="ml-auto flex items-center gap-2">
                 <Button
@@ -203,78 +211,97 @@ export function VideoPageClient({ video, relatedVideos }: VideoPageClientProps) 
 
             <Separator className="my-4" />
 
-            {/* Star info */}
-            {star && (
-              <Link
-                href={`/star/${star.slug}`}
-                className="flex items-center gap-3 rounded-xl p-3 transition-colors hover:bg-secondary/50"
-              >
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-primary/30 to-accent/30 text-lg font-bold text-primary">
-                  {star.name.charAt(0)}
+            {/* Stars section - TÜM starlar gösteriliyor */}
+            {video.stars.length > 0 && (
+              <>
+                <div className="space-y-2">
+                  {video.stars.map((star) => (
+                    <Link
+                      key={star.id}
+                      href={`/star/${star.slug}`}
+                      className="flex items-center gap-3 rounded-xl p-3 transition-colors hover:bg-secondary/50"
+                    >
+                      {star.avatar_url ? (
+                        <img
+                          src={star.avatar_url}
+                          alt={star.name}
+                          className="h-12 w-12 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-primary/30 to-accent/30 text-lg font-bold text-primary">
+                          {star.name.charAt(0)}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-foreground">{star.name}</h3>
+                        <p className="text-xs text-muted-foreground">
+                          {star.video_count} video &middot;{" "}
+                          {formatViewCount(star.view_count)} görüntülenme
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0 gap-1.5"
+                        onClick={(e) => e.preventDefault()}
+                      >
+                        <Heart className="h-4 w-4" />
+                        <span className="hidden sm:inline">Takip Et</span>
+                      </Button>
+                    </Link>
+                  ))}
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-foreground">{star.name}</h3>
-                  <p className="text-xs text-muted-foreground">
-                    {star.video_count} video &middot;{" "}
-                    {formatViewCount(star.view_count)} görüntülenme
-                  </p>
-                </div>
-                <Button variant="outline" size="sm" className="gap-1.5">
-                  <Heart className="h-4 w-4" />
-                  Takip Et
-                </Button>
-              </Link>
+                <Separator className="my-4" />
+              </>
             )}
 
-            <Separator className="my-4" />
-
-            {/* Categories / Tags */}
-            <div className="flex flex-wrap gap-2">
-              {video.categories.map((cat) => (
-                <Link key={cat.id} href={`/kategori/${cat.slug}`}>
-                  <Badge
-                    variant="outline"
-                    className="cursor-pointer transition-colors hover:bg-primary/10 hover:text-primary"
-                  >
-                    {cat.name}
-                  </Badge>
-                </Link>
-              ))}
-              {["HD", "2024", "Popüler"].map((tag) => (
-                <Badge
-                  key={tag}
-                  variant="outline"
-                  className="cursor-pointer transition-colors hover:bg-primary/10 hover:text-primary"
-                >
-                  {tag}
-                </Badge>
-              ))}
-            </div>
+            {/* Categories */}
+            {video.categories.length > 0 && (
+              <div className="mb-3">
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Kategoriler
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {video.categories.map((cat) => (
+                    <Link key={cat.id} href={`/kategori/${cat.slug}`}>
+                      <Badge
+                        variant="outline"
+                        className="cursor-pointer px-3 py-1 text-sm transition-colors hover:bg-primary/10 hover:text-primary hover:border-primary/30"
+                      >
+                        {cat.name}
+                      </Badge>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Description */}
             {video.description && (
-              <div className="mt-4">
+              <div className="mt-3 rounded-lg bg-secondary/30 p-3">
                 <div
-                  className={`text-sm text-muted-foreground ${
-                    !showFullDescription ? "line-clamp-2" : ""
+                  className={`text-sm text-muted-foreground leading-relaxed ${
+                    !showFullDescription ? "line-clamp-3" : ""
                   }`}
                 >
                   {video.description}
                 </div>
-                <button
-                  onClick={() => setShowFullDescription(!showFullDescription)}
-                  className="mt-1 flex items-center gap-1 text-xs text-primary hover:underline"
-                >
-                  {showFullDescription ? (
-                    <>
-                      Daha az göster <ChevronUp className="h-3 w-3" />
-                    </>
-                  ) : (
-                    <>
-                      Devamını göster <ChevronDown className="h-3 w-3" />
-                    </>
-                  )}
-                </button>
+                {video.description.length > 150 && (
+                  <button
+                    onClick={() => setShowFullDescription(!showFullDescription)}
+                    className="mt-2 flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                  >
+                    {showFullDescription ? (
+                      <>
+                        Daha az göster <ChevronUp className="h-3 w-3" />
+                      </>
+                    ) : (
+                      <>
+                        Devamını göster <ChevronDown className="h-3 w-3" />
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             )}
 
@@ -290,7 +317,7 @@ export function VideoPageClient({ video, relatedVideos }: VideoPageClientProps) 
               {/* Comment input */}
               <div className="mb-4 flex gap-3">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary text-sm font-bold text-muted-foreground">
-                  ?
+                  <User className="h-4 w-4" />
                 </div>
                 <div className="flex flex-1 gap-2">
                   <input
@@ -348,47 +375,65 @@ export function VideoPageClient({ video, relatedVideos }: VideoPageClientProps) 
             İlgili Videolar
           </h2>
           <div className="space-y-3">
-            {relatedVideos.map((relatedVideo) => (
-              <Link
-                key={relatedVideo.id}
-                href={`/video/${relatedVideo.slug}`}
-                className="group flex gap-3 rounded-lg p-1.5 transition-colors hover:bg-secondary/50"
-              >
-                {/* Thumbnail */}
-                <div className="relative h-20 w-36 shrink-0 overflow-hidden rounded-lg bg-secondary">
-                  <div className="flex h-full items-center justify-center bg-gradient-to-br from-secondary to-muted">
-                    <svg
-                      viewBox="0 0 24 24"
-                      className="h-6 w-6 text-muted-foreground/30"
-                      fill="currentColor"
-                    >
-                      <polygon points="6 3 20 12 6 21 6 3" />
-                    </svg>
-                  </div>
-                  <div className="absolute bottom-1 right-1 rounded bg-black/80 px-1 py-0.5 text-[10px] font-medium text-white">
-                    {formatDuration(relatedVideo.duration)}
-                  </div>
-                </div>
-                {/* Info */}
-                <div className="flex-1 overflow-hidden">
-                  <h3 className="line-clamp-2 text-sm font-medium leading-snug text-foreground transition-colors group-hover:text-primary">
-                    {relatedVideo.title}
-                  </h3>
-                  {relatedVideo.stars[0] && (
-                    <p className="mt-0.5 line-clamp-1 text-xs text-primary/70">
-                      {relatedVideo.stars[0].name}
-                    </p>
-                  )}
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {formatViewCount(relatedVideo.view_count)} &middot;{" "}
-                    {formatRelativeTime(relatedVideo.created_at)}
-                  </p>
-                </div>
-              </Link>
+            {relatedVideos.map((rv) => (
+              <RelatedVideoCard key={rv.id} video={rv} />
             ))}
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+// Related video card with actual thumbnail
+function RelatedVideoCard({ video }: { video: Video }) {
+  const [imgError, setImgError] = useState(false);
+
+  return (
+    <Link
+      href={`/video/${video.slug}`}
+      className="group flex gap-3 rounded-lg p-1.5 transition-colors hover:bg-secondary/50"
+    >
+      {/* Thumbnail */}
+      <div className="relative h-20 w-36 shrink-0 overflow-hidden rounded-lg bg-secondary">
+        {video.thumbnail_url && !imgError ? (
+          <img
+            src={video.thumbnail_url}
+            alt={video.title}
+            loading="lazy"
+            onError={() => setImgError(true)}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center bg-gradient-to-br from-secondary to-muted">
+            <svg
+              viewBox="0 0 24 24"
+              className="h-6 w-6 text-muted-foreground/30"
+              fill="currentColor"
+            >
+              <polygon points="6 3 20 12 6 21 6 3" />
+            </svg>
+          </div>
+        )}
+        <div className="absolute bottom-1 right-1 rounded bg-black/80 px-1 py-0.5 text-[10px] font-medium text-white">
+          {formatDuration(video.duration)}
+        </div>
+      </div>
+      {/* Info */}
+      <div className="flex-1 overflow-hidden">
+        <h3 className="line-clamp-2 text-sm font-medium leading-snug text-foreground transition-colors group-hover:text-primary">
+          {video.title}
+        </h3>
+        {video.stars[0] && (
+          <p className="mt-0.5 line-clamp-1 text-xs text-primary/70">
+            {video.stars.map((s) => s.name).join(", ")}
+          </p>
+        )}
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          {formatViewCount(video.view_count)} &middot;{" "}
+          {formatRelativeTime(video.created_at)}
+        </p>
+      </div>
+    </Link>
   );
 }

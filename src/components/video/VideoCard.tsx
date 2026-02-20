@@ -14,6 +14,7 @@ interface VideoCardProps {
 
 export function VideoCard({ video, priority = false }: VideoCardProps) {
   const [isHovered, setIsHovered] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   return (
     <Link
@@ -30,26 +31,32 @@ export function VideoCard({ video, priority = false }: VideoCardProps) {
             : "aspect-video"
         }`}
       >
-        {/* Thumbnail placeholder */}
-        <div className="absolute inset-0 bg-gradient-to-br from-secondary to-muted">
-          <div className="flex h-full items-center justify-center">
-            <svg
-              viewBox="0 0 24 24"
-              className="h-12 w-12 text-muted-foreground/30"
-              fill="currentColor"
-            >
-              <polygon points="6 3 20 12 6 21 6 3" />
-            </svg>
-          </div>
-        </div>
-
-        {/* Hover overlay - animated preview placeholder */}
-        {isHovered && (
-          <div className="absolute inset-0 bg-black/20">
+        {/* Actual thumbnail image */}
+        {video.thumbnail_url && !imgError ? (
+          <img
+            src={video.thumbnail_url}
+            alt={video.title}
+            loading={priority ? "eager" : "lazy"}
+            onError={() => setImgError(true)}
+            className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-secondary to-muted">
             <div className="flex h-full items-center justify-center">
-              <div className="h-10 w-10 animate-pulse rounded-full bg-white/20" />
+              <svg
+                viewBox="0 0 24 24"
+                className="h-12 w-12 text-muted-foreground/30"
+                fill="currentColor"
+              >
+                <polygon points="6 3 20 12 6 21 6 3" />
+              </svg>
             </div>
           </div>
+        )}
+
+        {/* Hover overlay */}
+        {isHovered && (
+          <div className="absolute inset-0 bg-black/20 transition-opacity" />
         )}
 
         {/* Duration badge */}
@@ -91,19 +98,16 @@ export function VideoCard({ video, priority = false }: VideoCardProps) {
 
       {/* Info */}
       <div className="p-2.5">
-        {/* Title */}
         <h3 className="line-clamp-2 text-sm font-medium leading-snug text-foreground group-hover:text-primary transition-colors">
           {video.title}
         </h3>
 
-        {/* Stars/Categories */}
         {video.stars.length > 0 && (
           <p className="mt-1 text-xs text-primary/80 line-clamp-1">
             {video.stars.map((s) => s.name).join(", ")}
           </p>
         )}
 
-        {/* Meta */}
         <div className="mt-1.5 flex items-center gap-3 text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
             <Eye className="h-3 w-3" />
