@@ -66,11 +66,13 @@ export function VideoPlayer({
     return () => document.removeEventListener("fullscreenchange", onFs);
   }, []);
 
-  // Video başladığında 4 saniye passthrough (BunnyCDN kontrolleri erişilebilir)
+  // Cleanup timers
   useEffect(() => {
-    if (!started) return;
-    enablePassthrough();
-  }, [started, enablePassthrough]);
+    return () => {
+      if (passthroughTimer.current) clearTimeout(passthroughTimer.current);
+      if (sideTimerRef.current) clearTimeout(sideTimerRef.current);
+    };
+  }, []);
 
   // player.js init
   useEffect(() => {
@@ -115,7 +117,8 @@ export function VideoPlayer({
         }
         setSeekAnim("left");
         setTimeout(() => setSeekAnim(null), 350);
-        enablePassthrough();
+        // Seek sonrası passthrough aç (animasyon bitince)
+        setTimeout(() => enablePassthrough(), 400);
         return;
       }
 
@@ -127,11 +130,11 @@ export function VideoPlayer({
         }
         setSeekAnim("right");
         setTimeout(() => setSeekAnim(null), 350);
-        enablePassthrough();
+        setTimeout(() => enablePassthrough(), 400);
         return;
       }
 
-      // Tek tap center → anında play/pause
+      // Tek tap center → anında play/pause + passthrough
       if (zone === "center") {
         if (player) {
           player.getPaused((paused: boolean) => {
@@ -149,8 +152,12 @@ export function VideoPlayer({
         return;
       }
 
-      // Tek tap sol/sağ → sadece passthrough aç (kontrolleri göster)
-      enablePassthrough();
+      // Tek tap sol/sağ → 350ms bekle (çift tap window geçsin), sonra passthrough
+      if (sideTimerRef.current) clearTimeout(sideTimerRef.current);
+      sideTimerRef.current = setTimeout(() => {
+        if (lastTapRef.current.time !== now) return;
+        enablePassthrough();
+      }, 350);
     },
     [enablePassthrough]
   );
