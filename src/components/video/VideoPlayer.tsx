@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Play, Pause, RotateCcw, RotateCw } from "lucide-react";
+import { Play, Pause, RotateCcw, RotateCw, Maximize2, Minimize2 } from "lucide-react";
 
 interface VideoPlayerProps {
   videoUrl?: string;
@@ -26,13 +26,13 @@ export function VideoPlayer({
   const [seekAnim, setSeekAnim] = useState<null | "left" | "right">(null);
   const [tapAnim, setTapAnim] = useState<"play" | "pause" | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isPortrait, setIsPortrait] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const playerRef = useRef<any>(null);
   const lastTapRef = useRef({ time: 0, zone: "" });
   const sideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const passthroughTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const redirectingRef = useRef(false);
 
   const resolvedBunnyId = bunnyVideoId || extractBunnyId(videoUrl);
   const embedUrl = resolvedBunnyId
@@ -54,41 +54,19 @@ export function VideoPlayer({
     );
   }, []);
 
-  // Fullscreen: BunnyCDN iframe fullscreen olursa container'a yönlendir
-  // Böylece gesture overlay her zaman görünür kalır
+  // Fullscreen: Container fullscreen değişikliklerini dinle
   useEffect(() => {
     const onFs = async () => {
-      // Redirect sırasında tekrar tetiklenmeyi önle
-      if (redirectingRef.current) return;
-
       const fsElem = document.fullscreenElement;
 
-      // BunnyCDN iframe fullscreen olduysa → container'a yönlendir
-      if (fsElem && fsElem === iframeRef.current && containerRef.current) {
-        redirectingRef.current = true;
-        try {
-          await document.exitFullscreen();
-          // Tarayıcının işlemesi için kısa bekleme
-          await new Promise((r) => setTimeout(r, 50));
-          await containerRef.current.requestFullscreen();
-        } catch {
-          // Sessiz hata - fullscreen desteklenmiyorsa
-        }
-        redirectingRef.current = false;
-        return;
-      }
-
-      // Kendi container'ımız fullscreen oldu
       if (fsElem === containerRef.current) {
+        // Container fullscreen oldu → landscape kilitle
         setIsFullscreen(true);
         try {
           await (screen.orientation as any)?.lock?.("landscape");
         } catch {}
-        return;
-      }
-
-      // Fullscreen'den çıkış
-      if (!fsElem) {
+      } else if (!fsElem) {
+        // Fullscreen'den çıkış
         setIsFullscreen(false);
         try {
           (screen.orientation as any)?.unlock?.();
@@ -97,7 +75,19 @@ export function VideoPlayer({
     };
 
     document.addEventListener("fullscreenchange", onFs);
-    return () => document.removeEventListener("fullscreenchange", onFs);
+    document.addEventListener("webkitfullscreenchange", onFs);
+    return () => {
+      document.removeEventListener("fullscreenchange", onFs);
+      document.removeEventListener("webkitfullscreenchange", onFs);
+    };
+  }, []);
+
+  // Portrait/landscape algılama (CSS rotation fallback için)
+  useEffect(() => {
+    const check = () => setIsPortrait(window.innerHeight > window.innerWidth);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
   }, []);
 
   // Cleanup timers
@@ -130,6 +120,18 @@ export function VideoPlayer({
       clearTimeout(timer);
     };
   }, [started]);
+
+  // Fullscreen toggle - kendi butonumuz ile container'ı fullscreen yap
+  const toggleFullscreen = useCallback(async () => {
+    if (!containerRef.current) return;
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else {
+        await containerRef.current.requestFullscreen();
+      }
+    } catch {}
+  }, []);
 
   // Gesture handler
   const handleGesture = useCallback(
@@ -238,12 +240,27 @@ export function VideoPlayer({
     );
   }
 
+  // CSS rotation: fullscreen + portrait + yatay video ise rotate et
+  // screen.orientation.lock başarılı olursa device döner → isPortrait=false → rotation uygulanmaz
+  // lock başarısız olursa (iOS vs.) → CSS ile zorla landscape yapılır
+  const forceRotate = isFullscreen && isPortrait && orientation === "horizontal";
+
   return (
     <div
       ref={containerRef}
       className={`relative overflow-hidden bg-black ${
         isFullscreen ? "" : `rounded-xl ${aspectClass}`
       }`}
+      style={forceRotate ? {
+        position: "fixed",
+        top: 0,
+        left: 0,
+        width: "100vh",
+        height: "100vw",
+        transform: "rotate(90deg) translateY(-100%)",
+        transformOrigin: "top left",
+        zIndex: 9999,
+      } : undefined}
     >
       {/* BunnyCDN iframe player */}
       <iframe
@@ -253,8 +270,7 @@ export function VideoPlayer({
         className={`absolute inset-0 border-0 ${
           isFullscreen ? "h-full w-full" : "h-full w-full"
         }`}
-        allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen"
-        allowFullScreen
+        allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
         title={title}
       />
 
@@ -278,6 +294,19 @@ export function VideoPlayer({
           onClick={() => handleGesture("right")}
         />
       </div>
+
+      {/* Fullscreen butonu - her zaman görünür, sağ alt köşe */}
+      <button
+        onClick={toggleFullscreen}
+        className="absolute bottom-3 right-3 z-30 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 backdrop-blur-sm transition-opacity hover:bg-black/70"
+        aria-label={isFullscreen ? "Fullscreen'den çık" : "Fullscreen"}
+      >
+        {isFullscreen ? (
+          <Minimize2 className="h-5 w-5 text-white" />
+        ) : (
+          <Maximize2 className="h-5 w-5 text-white" />
+        )}
+      </button>
 
       {/* -5s animasyonu */}
       {seekAnim === "left" && (
