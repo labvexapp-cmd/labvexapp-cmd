@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Play } from "lucide-react";
 
 interface VideoPlayerProps {
@@ -71,6 +71,20 @@ export function VideoPlayer({
       </div>
     );
   }
+
+  // Fullscreen'de mobilde landscape'e döndür
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const so = screen.orientation as any;
+      if (document.fullscreenElement) {
+        so?.lock?.("landscape").catch(() => {});
+      } else {
+        so?.unlock?.();
+      }
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
 
   // BunnyCDN iframe player
   return (
