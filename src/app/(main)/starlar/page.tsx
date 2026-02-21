@@ -30,8 +30,19 @@ export default async function StarlarPage() {
             className="group flex flex-col items-center rounded-xl border border-border bg-card p-4 text-center transition-all hover:border-primary/50 hover:bg-secondary/50"
           >
             {/* Avatar */}
-            <div className="mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-primary/30 to-accent/30 text-2xl font-bold text-primary transition-transform group-hover:scale-105">
-              {star.name.charAt(0)}
+            <div className="mb-3 h-20 w-20 overflow-hidden rounded-full bg-gradient-to-br from-primary/30 to-accent/30 transition-transform group-hover:scale-105">
+              {star.avatar_url ? (
+                <img
+                  src={star.avatar_url}
+                  alt={star.name}
+                  loading="lazy"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-2xl font-bold text-primary">
+                  {star.name.charAt(0)}
+                </div>
+              )}
             </div>
 
             {/* Name */}

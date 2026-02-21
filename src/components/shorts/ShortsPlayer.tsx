@@ -25,6 +25,7 @@ export function ShortsPlayer({ video, isActive }: ShortsPlayerProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const playerRef = useRef<any>(null);
   const passthroughTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const progressBarRef = useRef<HTMLDivElement>(null);
 
   const [isMuted, setIsMuted] = useState(true);
   const [playerReady, setPlayerReady] = useState(false);
@@ -32,7 +33,7 @@ export function ShortsPlayer({ video, isActive }: ShortsPlayerProps) {
   const [tapAnim, setTapAnim] = useState<"play" | "pause" | null>(null);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
+  const [isSeeking, setIsSeeking] = useState(false);
 
   const bunnyId = extractBunnyId(video.video_url);
   const embedUrl = bunnyId
@@ -71,15 +72,12 @@ export function ShortsPlayer({ video, isActive }: ShortsPlayerProps) {
             playerRef.current = p;
             setPlayerReady(true);
 
-            // Duration al
             p.getDuration((d: number) => {
               if (!cancelled) setDuration(d);
             });
 
-            // Zaman takibi
             p.on("timeupdate", (data: { seconds: number; duration: number }) => {
               if (!cancelled) {
-                setCurrentTime(data.seconds);
                 setDuration(data.duration);
                 if (data.duration > 0) {
                   setProgress(data.seconds / data.duration);
@@ -144,33 +142,73 @@ export function ShortsPlayer({ video, isActive }: ShortsPlayerProps) {
     }
   }, [isMuted, playerReady]);
 
-  // Progress bar seek
-  const handleSeek = useCallback(
-    (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
+  // --- Drag-to-seek progress bar ---
+  const seekToPosition = useCallback(
+    (clientX: number) => {
       const player = playerRef.current;
-      if (!player || !playerReady || duration <= 0) return;
+      const bar = progressBarRef.current;
+      if (!player || !playerReady || duration <= 0 || !bar) return;
 
-      const bar = e.currentTarget;
       const rect = bar.getBoundingClientRect();
-      const clientX =
-        "touches" in e ? e.touches[0].clientX : e.clientX;
       const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
       const seekTime = ratio * duration;
 
       player.setCurrentTime(seekTime);
       setProgress(ratio);
-      setCurrentTime(seekTime);
-      enablePassthrough();
     },
-    [playerReady, duration, enablePassthrough]
+    [playerReady, duration]
   );
 
-  // Zaman formatla
-  const formatTime = (sec: number) => {
-    const m = Math.floor(sec / 60);
-    const s = Math.floor(sec % 60);
-    return `${m}:${s.toString().padStart(2, "0")}`;
-  };
+  // Mouse drag handlers
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsSeeking(true);
+      seekToPosition(e.clientX);
+
+      const onMouseMove = (ev: MouseEvent) => {
+        seekToPosition(ev.clientX);
+      };
+      const onMouseUp = () => {
+        setIsSeeking(false);
+        document.removeEventListener("mousemove", onMouseMove);
+        document.removeEventListener("mouseup", onMouseUp);
+      };
+
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("mouseup", onMouseUp);
+    },
+    [seekToPosition]
+  );
+
+  // Touch drag handlers
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent<HTMLDivElement>) => {
+      e.stopPropagation();
+      setIsSeeking(true);
+      seekToPosition(e.touches[0].clientX);
+
+      const bar = progressBarRef.current;
+      if (!bar) return;
+
+      const onTouchMove = (ev: TouchEvent) => {
+        ev.preventDefault();
+        seekToPosition(ev.touches[0].clientX);
+      };
+      const onTouchEnd = () => {
+        setIsSeeking(false);
+        bar.removeEventListener("touchmove", onTouchMove);
+        bar.removeEventListener("touchend", onTouchEnd);
+        bar.removeEventListener("touchcancel", onTouchEnd);
+      };
+
+      bar.addEventListener("touchmove", onTouchMove, { passive: false });
+      bar.addEventListener("touchend", onTouchEnd);
+      bar.addEventListener("touchcancel", onTouchEnd);
+    },
+    [seekToPosition]
+  );
 
   if (!embedUrl) {
     return (
@@ -197,7 +235,7 @@ export function ShortsPlayer({ video, isActive }: ShortsPlayerProps) {
         title={video.title}
       />
 
-      {/* Gesture overlay - tap → play/pause, passthrough sonrası iframe kontrollerine erişim */}
+      {/* Gesture overlay */}
       <div
         className={`absolute inset-0 z-10 ${
           passthrough ? "pointer-events-none" : "pointer-events-auto"
@@ -234,40 +272,47 @@ export function ShortsPlayer({ video, isActive }: ShortsPlayerProps) {
         )}
       </button>
 
-      {/* Progress bar - her zaman görünür */}
-      <div className="absolute bottom-0 left-0 right-0 z-20">
-        {/* Zaman gösterge */}
-        {duration > 0 && (
-          <div className="flex items-center justify-between px-3 pb-1">
-            <span className="text-[10px] font-medium text-white/70">
-              {formatTime(currentTime)}
-            </span>
-            <span className="text-[10px] font-medium text-white/70">
-              {formatTime(duration)}
-            </span>
+      {/* TikTok-style progress bar */}
+      <div
+        ref={progressBarRef}
+        className="absolute bottom-0 left-0 right-0 z-20 cursor-pointer"
+        style={{ touchAction: "none" }}
+        onMouseDown={handleMouseDown}
+        onTouchStart={handleTouchStart}
+      >
+        {/* Invisible touch target (48px tall for mobile accessibility) */}
+        <div className="relative h-12 flex items-end">
+          {/* Track background */}
+          <div
+            className="relative w-full overflow-hidden transition-[height] duration-150"
+            style={{ height: isSeeking ? "4px" : "2.5px" }}
+          >
+            {/* Unplayed track */}
+            <div
+              className="absolute inset-0 bg-white/25"
+              style={{ filter: "drop-shadow(0 0 1px rgba(0,0,0,0.5))" }}
+            />
+
+            {/* Played progress - GPU accelerated */}
+            <div
+              className="absolute inset-0 origin-left bg-white transition-none"
+              style={{
+                transform: `scaleX(${progress})`,
+                filter: "drop-shadow(0 0 1px rgba(0,0,0,0.3))",
+              }}
+            />
           </div>
-        )}
 
-        {/* Seekable progress bar */}
-        <div
-          className="group relative h-6 cursor-pointer px-1"
-          onClick={handleSeek}
-          onTouchStart={handleSeek}
-        >
-          {/* Track arka plan */}
-          <div className="absolute bottom-2 left-1 right-1 h-1 rounded-full bg-white/20 transition-all group-hover:h-1.5" />
-
-          {/* İlerleme */}
-          <div
-            className="absolute bottom-2 left-1 h-1 rounded-full bg-primary transition-all group-hover:h-1.5"
-            style={{ width: `${progress * 100}%`, maxWidth: "calc(100% - 8px)" }}
-          />
-
-          {/* Seek handle - hover'da görünür */}
-          <div
-            className="absolute bottom-1 h-3 w-3 -translate-x-1/2 rounded-full bg-primary opacity-0 shadow-lg transition-opacity group-hover:opacity-100"
-            style={{ left: `calc(4px + ${progress * 100}% * (100% - 8px) / 100%)` }}
-          />
+          {/* Seek handle - only visible during drag */}
+          {isSeeking && (
+            <div
+              className="absolute bottom-0 h-3.5 w-3.5 -translate-x-1/2 translate-y-[3px] rounded-full bg-white"
+              style={{
+                left: `${progress * 100}%`,
+                boxShadow: "0 0 4px rgba(0,0,0,0.5)",
+              }}
+            />
+          )}
         </div>
       </div>
     </div>
