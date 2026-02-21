@@ -23,27 +23,24 @@ export function ShortsItem({
   isMuted,
   onMuteToggle,
 }: ShortsItemProps) {
-  const [showUI, setShowUI] = useState(true);
+  const [showUI, setShowUI] = useState(false);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Sadece tap'te UI göster, 3s sonra gizle
   const resetHideTimer = useCallback(() => {
     setShowUI(true);
     if (hideTimer.current) clearTimeout(hideTimer.current);
     hideTimer.current = setTimeout(() => setShowUI(false), 3000);
   }, []);
 
-  // Aktif olunca timer başlat, pasifken UI göster (scroll arası)
+  // Scroll geçişinde UI gizli kalsın, timer temizle
   useEffect(() => {
-    if (isActive) {
-      resetHideTimer();
-    } else {
-      setShowUI(true);
-      if (hideTimer.current) clearTimeout(hideTimer.current);
-    }
+    setShowUI(false);
+    if (hideTimer.current) clearTimeout(hideTimer.current);
     return () => {
       if (hideTimer.current) clearTimeout(hideTimer.current);
     };
-  }, [isActive, resetHideTimer]);
+  }, [isActive]);
 
   return (
     <div

@@ -87,6 +87,14 @@ export function ShortsPlayer({ video, isActive, isMuted, onMuteToggle, showUI, o
                 }
               }
             });
+
+            // Loop: video bitince baştan oyna
+            p.on("ended", () => {
+              if (!cancelled) {
+                p.setCurrentTime(0);
+                p.play();
+              }
+            });
           }
         });
       } catch (err) {
