@@ -2,12 +2,14 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Volume2, VolumeX, Play, Pause } from "lucide-react";
+import { trackView, trackWatch } from "@/lib/tracking";
 
 const LIBRARY_ID = "603403";
 const PASSTHROUGH_MS = 4000;
 
 interface ShortsPlayerProps {
   video: {
+    id: string;
     video_url: string;
     thumbnail_url: string;
     title: string;
@@ -37,6 +39,10 @@ export function ShortsPlayer({ video, isActive, isMuted, onMuteToggle, showUI, o
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isSeeking, setIsSeeking] = useState(false);
+
+  // Tracking state
+  const viewTracked = useRef(false);
+  const watchMilestones = useRef(new Set<number>());
 
   const bunnyId = extractBunnyId(video.video_url);
   const embedUrl = bunnyId
@@ -84,6 +90,15 @@ export function ShortsPlayer({ video, isActive, isMuted, onMuteToggle, showUI, o
                 setDuration(data.duration);
                 if (data.duration > 0) {
                   setProgress(data.seconds / data.duration);
+
+                  // Watch milestones: %25, %50, %75, %100
+                  const pct = Math.round((data.seconds / data.duration) * 100);
+                  for (const milestone of [25, 50, 75, 100]) {
+                    if (pct >= milestone && !watchMilestones.current.has(milestone)) {
+                      watchMilestones.current.add(milestone);
+                      trackWatch(video.id, Math.round(data.seconds), milestone);
+                    }
+                  }
                 }
               }
             });
@@ -109,17 +124,22 @@ export function ShortsPlayer({ video, isActive, isMuted, onMuteToggle, showUI, o
     };
   }, [embedUrl]);
 
-  // Aktif/pasif kontrolü
+  // Aktif/pasif kontrolü + view tracking
   useEffect(() => {
     const player = playerRef.current;
     if (!player || !playerReady) return;
 
     if (isActive) {
       player.play();
+      // İlk oynatmada view kaydet (1 kez)
+      if (!viewTracked.current) {
+        viewTracked.current = true;
+        trackView(video.id);
+      }
     } else {
       player.pause();
     }
-  }, [isActive, playerReady]);
+  }, [isActive, playerReady, video.id]);
 
   // Tap → play/pause + passthrough + UI göster
   const handleTap = useCallback(() => {

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { trackView } from "@/lib/tracking";
 import Link from "next/link";
 import {
   ThumbsUp,
@@ -78,6 +79,16 @@ interface VideoPageClientProps {
 }
 
 export function VideoPageClient({ video, relatedVideos }: VideoPageClientProps) {
+  const viewTracked = useRef(false);
+
+  // Sayfa açılınca view kaydet (1 kez)
+  useEffect(() => {
+    if (!viewTracked.current) {
+      viewTracked.current = true;
+      trackView(video.id);
+    }
+  }, [video.id]);
+
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [isDisliked, setIsDisliked] = useState(false);
