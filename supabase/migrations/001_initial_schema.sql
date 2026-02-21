@@ -350,9 +350,15 @@ CREATE INDEX idx_user_views_user ON user_views(user_id);
 CREATE INDEX idx_user_views_video ON user_views(video_id);
 CREATE INDEX idx_user_views_created ON user_views(created_at DESC);
 
+-- Immutable date extraction for index (timestamptz → date, UTC)
+CREATE OR REPLACE FUNCTION date_utc(ts TIMESTAMPTZ)
+RETURNS DATE AS $$
+  SELECT (ts AT TIME ZONE 'UTC')::DATE;
+$$ LANGUAGE SQL IMMUTABLE;
+
 -- Unique view counting (same user/IP per day)
 CREATE UNIQUE INDEX idx_user_views_unique_daily
-    ON user_views(COALESCE(user_id, '00000000-0000-0000-0000-000000000000'), video_id, DATE(created_at));
+    ON user_views(COALESCE(user_id, '00000000-0000-0000-0000-000000000000'), video_id, date_utc(created_at));
 
 -- ============================================
 -- 14. USER LIKES
