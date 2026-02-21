@@ -12,6 +12,7 @@
     "NEXT_PUBLIC_SUPABASE_URL": "https://rjuhgllrnlykdmgzntro.supabase.co",
     "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJqdWhnbGxybmx5a2RtZ3pudHJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1OTMyNjAsImV4cCI6MjA4NzE2OTI2MH0.d-IinfWr6LdwBnxNKm8vnAzHHkB4pg8rUYthV1uURUo",
     "NEXT_PUBLIC_BUNNY_CDN_URL": "https://vz-75d0020c-e31.b-cdn.net",
+    "NEXT_PUBLIC_BUNNY_STORAGE_CDN": "https://labvex.b-cdn.net",
     "NEXT_PUBLIC_SITE_URL": "https://labvex.site",
     "NEXT_PUBLIC_SITE_NAME": "LabVex"
   }

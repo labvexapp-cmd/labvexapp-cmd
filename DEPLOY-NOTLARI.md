@@ -1,49 +1,27 @@
 # LabVex Deploy Notları
 
-## Mevcut Durum: Static Export (Cloudflare Pages)
-- `next.config.ts` → `output: "export"` aktif
-- Build: `npm run build` → `out/` klasörüne static HTML üretir
-- Deploy: Cloudflare Pages otomatik deploy (GitHub push ile)
-- Cloudflare ayarları: Build cmd = `npm run build`, Deploy cmd = `npx wrangler pages deploy out`, Output dir = boş
+## Mevcut Durum: OpenNext (Cloudflare Workers)
+- `next.config.ts` → `output: "export"` **YOK** (SSR modu)
+- Build: `npx opennextjs-cloudflare build`
+- Deploy: `npx wrangler deploy`
+- Cloudflare Dashboard'da bu ayarlar yapıldı, GitHub push ile otomatik deploy
 
-## İLERİDE: OpenNext'e Geçiş (SSR/Database/Auth eklenince)
-Veritabanı, kullanıcı girişi veya server-side rendering gerekince:
-
-### Adım 1: next.config.ts
-```ts
-// Bu satırı SİL veya yorum yap:
-// output: "export",
-
-// Bu satırı dosyanın EN ALTINA ekle:
-import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
-initOpenNextCloudflareForDev();
-```
-
-### Adım 2: Cloudflare Ayarları
+## Cloudflare Dashboard Ayarları
 - Build command: `npx opennextjs-cloudflare build`
-- Deploy command: `npx opennextjs-cloudflare deploy`
+- Deploy command: `npx wrangler deploy`
+- Non-production branch deploy: `npx wrangler deploy`
+- Environment variables: wrangler.jsonc'deki `vars` ile aynı
 
-### Adım 3: wrangler.jsonc oluştur
-```jsonc
-{
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "main": ".open-next/worker.js",
-  "name": "labvex",
-  "compatibility_date": "2024-12-30",
-  "compatibility_flags": ["nodejs_compat"],
-  "assets": {
-    "directory": ".open-next/assets",
-    "binding": "ASSETS"
-  }
-}
-```
+## Dosya Yapısı
+- `next.config.ts` → SSR, turbopack root fix
+- `wrangler.jsonc` → Worker config + env vars
+- `open-next.config.ts` → defineCloudflareConfig()
+- `.env.local` → Lokal geliştirme env'leri (git'e EKLENMEZ)
 
-### Gerekli Paket (zaten yüklü)
+## Gerekli Paketler
 - `@opennextjs/cloudflare` v1.16.5 ✓
-- `open-next.config.ts` dosyası zaten var ✓
+- `wrangler` (devDep olarak @opennextjs/cloudflare ile gelir)
 
-### Neden Şu An Static Export?
-- Sitemizde henüz veritabanı/auth/API yok
-- Static export daha hızlı (sunucu yok, doğrudan HTML)
-- Cloudflare Pages ile sorunsuz çalışır
-- İleride geçiş 5 dakika sürer
+## CDN Yapısı
+- Video: BunnyCDN Stream → `https://vz-75d0020c-e31.b-cdn.net`
+- Görseller: BunnyCDN Storage → `https://labvex.b-cdn.net`
