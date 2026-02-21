@@ -272,10 +272,10 @@ export function ShortsPlayer({ video, isActive }: ShortsPlayerProps) {
         )}
       </button>
 
-      {/* TikTok-style progress bar */}
+      {/* TikTok-style progress bar - z-30 to stay above ShortsOverlay */}
       <div
         ref={progressBarRef}
-        className="absolute bottom-0 left-0 right-0 z-20 cursor-pointer"
+        className="absolute bottom-0 left-0 right-0 z-30 cursor-pointer"
         style={{ touchAction: "none" }}
         onMouseDown={handleMouseDown}
         onTouchStart={handleTouchStart}

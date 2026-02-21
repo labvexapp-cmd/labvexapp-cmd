@@ -10,11 +10,11 @@ interface ShortsOverlayProps {
 
 export function ShortsOverlay({ video }: ShortsOverlayProps) {
   return (
-    <div className="absolute bottom-0 left-0 right-16 z-20 p-4 pb-6">
+    <div className="absolute bottom-0 left-0 right-16 z-20 p-4 pb-14 pointer-events-none">
       {/* Gradient arka plan */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent pointer-events-none" />
 
-      <div className="relative">
+      <div className="relative pointer-events-auto">
         {/* Star adı */}
         {video.stars.length > 0 && (
           <Link
