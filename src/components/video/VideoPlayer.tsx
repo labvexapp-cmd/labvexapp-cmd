@@ -54,13 +54,13 @@ export function VideoPlayer({
     );
   }, []);
 
-  // Fullscreen: Container fullscreen değişikliklerini dinle
+  // Fullscreen değişikliklerini dinle
   useEffect(() => {
     const onFs = async () => {
       const fsElem = document.fullscreenElement;
 
-      if (fsElem === containerRef.current) {
-        // Container fullscreen oldu → landscape kilitle
+      if (fsElem === containerRef.current || fsElem === iframeRef.current) {
+        // Container veya iframe fullscreen oldu → landscape kilitle
         setIsFullscreen(true);
         try {
           await (screen.orientation as any)?.lock?.("landscape");
@@ -270,7 +270,8 @@ export function VideoPlayer({
         className={`absolute inset-0 border-0 ${
           isFullscreen ? "h-full w-full" : "h-full w-full"
         }`}
-        allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
+        allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen"
+        allowFullScreen
         title={title}
       />
 
