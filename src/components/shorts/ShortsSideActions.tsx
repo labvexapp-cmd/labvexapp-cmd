@@ -7,9 +7,10 @@ import type { Video } from "@/types";
 
 interface ShortsSideActionsProps {
   video: Video;
+  visible: boolean;
 }
 
-export function ShortsSideActions({ video }: ShortsSideActionsProps) {
+export function ShortsSideActions({ video, visible }: ShortsSideActionsProps) {
   const [isLiked, setIsLiked] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [likeCount, setLikeCount] = useState(video.like_count);
@@ -31,7 +32,9 @@ export function ShortsSideActions({ video }: ShortsSideActionsProps) {
   };
 
   return (
-    <div className="absolute bottom-24 right-3 z-20 flex flex-col items-center gap-5">
+    <div className={`absolute bottom-24 right-3 z-20 flex flex-col items-center gap-5 transition-opacity duration-300 ${
+      visible ? "opacity-100" : "opacity-0 pointer-events-none"
+    }`}>
       {/* Like */}
       <button
         onClick={handleLike}

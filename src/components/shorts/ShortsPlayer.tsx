@@ -13,6 +13,10 @@ interface ShortsPlayerProps {
     title: string;
   };
   isActive: boolean;
+  isMuted: boolean;
+  onMuteToggle: () => void;
+  showUI: boolean;
+  onInteraction: () => void;
 }
 
 function extractBunnyId(url?: string): string | null {
@@ -21,13 +25,12 @@ function extractBunnyId(url?: string): string | null {
   return match?.[1] || null;
 }
 
-export function ShortsPlayer({ video, isActive }: ShortsPlayerProps) {
+export function ShortsPlayer({ video, isActive, isMuted, onMuteToggle, showUI, onInteraction }: ShortsPlayerProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const playerRef = useRef<any>(null);
   const passthroughTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
 
-  const [isMuted, setIsMuted] = useState(true);
   const [playerReady, setPlayerReady] = useState(false);
   const [passthrough, setPassthrough] = useState(false);
   const [tapAnim, setTapAnim] = useState<"play" | "pause" | null>(null);
@@ -110,7 +113,7 @@ export function ShortsPlayer({ video, isActive }: ShortsPlayerProps) {
     }
   }, [isActive, playerReady]);
 
-  // Tap → play/pause + passthrough
+  // Tap → play/pause + passthrough + UI göster
   const handleTap = useCallback(() => {
     const player = playerRef.current;
     if (!player || !playerReady) return;
@@ -127,20 +130,25 @@ export function ShortsPlayer({ video, isActive }: ShortsPlayerProps) {
     });
 
     enablePassthrough();
-  }, [playerReady, enablePassthrough]);
+    onInteraction();
+  }, [playerReady, enablePassthrough, onInteraction]);
 
-  // Mute toggle
-  const toggleMute = useCallback(() => {
+  // Mute state'i parent'tan gelir, player'a sync et
+  useEffect(() => {
     const player = playerRef.current;
-    if (player && playerReady) {
-      if (isMuted) {
-        player.unmute();
-      } else {
-        player.mute();
-      }
-      setIsMuted(!isMuted);
+    if (!player || !playerReady) return;
+    if (isMuted) {
+      player.mute();
+    } else {
+      player.unmute();
     }
   }, [isMuted, playerReady]);
+
+  // Mute toggle - parent state'i güncelle
+  const toggleMute = useCallback(() => {
+    onMuteToggle();
+    onInteraction();
+  }, [onMuteToggle, onInteraction]);
 
   // --- Drag-to-seek progress bar ---
   const seekToPosition = useCallback(
@@ -263,7 +271,9 @@ export function ShortsPlayer({ video, isActive }: ShortsPlayerProps) {
           e.stopPropagation();
           toggleMute();
         }}
-        className="absolute right-4 top-4 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm transition-colors hover:bg-black/70"
+        className={`absolute right-4 top-4 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm transition-all duration-300 hover:bg-black/70 ${
+          showUI ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
       >
         {isMuted ? (
           <VolumeX className="h-5 w-5" />

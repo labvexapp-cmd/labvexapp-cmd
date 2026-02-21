@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { ShortsItem } from "@/components/shorts/ShortsItem";
 import { ShortsNavArrows } from "@/components/shorts/ShortsNavArrows";
 import type { Video } from "@/types";
@@ -12,7 +12,10 @@ interface ShortsPageClientProps {
 
 export function ShortsPageClient({ videos, initialSlug }: ShortsPageClientProps) {
   const [activeIndex, setActiveIndex] = useState(0);
+  const [isMuted, setIsMuted] = useState(true);
   const feedRef = useRef<HTMLDivElement>(null);
+
+  const toggleMute = useCallback(() => setIsMuted((prev) => !prev), []);
 
   // Klavye navigasyonu
   useEffect(() => {
@@ -107,6 +110,8 @@ export function ShortsPageClient({ videos, initialSlug }: ShortsPageClientProps)
             index={index}
             isActive={index === activeIndex}
             isNear={Math.abs(index - activeIndex) <= 1}
+            isMuted={isMuted}
+            onMuteToggle={toggleMute}
           />
         ))}
       </div>

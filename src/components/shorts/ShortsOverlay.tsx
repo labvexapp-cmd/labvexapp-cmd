@@ -6,11 +6,14 @@ import type { Video } from "@/types";
 
 interface ShortsOverlayProps {
   video: Video;
+  visible: boolean;
 }
 
-export function ShortsOverlay({ video }: ShortsOverlayProps) {
+export function ShortsOverlay({ video, visible }: ShortsOverlayProps) {
   return (
-    <div className="absolute bottom-0 left-0 right-16 z-20 p-4 pb-14 pointer-events-none">
+    <div className={`absolute bottom-0 left-0 right-16 z-20 p-4 pb-14 pointer-events-none transition-opacity duration-300 ${
+      visible ? "opacity-100" : "opacity-0"
+    }`}>
       {/* Gradient arka plan */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent pointer-events-none" />
 
