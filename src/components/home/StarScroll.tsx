@@ -29,11 +29,20 @@ export function StarScroll({ stars }: StarScrollProps) {
             href={`/star/${star.slug}`}
             className="group flex flex-shrink-0 flex-col items-center gap-2"
           >
-            {/* Avatar placeholder */}
+            {/* Avatar */}
             <div className="relative h-16 w-16 overflow-hidden rounded-full border-2 border-border bg-secondary transition-all group-hover:border-primary group-hover:glow-cyan md:h-20 md:w-20">
-              <div className="flex h-full items-center justify-center text-lg font-bold text-muted-foreground">
-                {star.name.charAt(0)}
-              </div>
+              {star.avatar_url ? (
+                <img
+                  src={star.avatar_url}
+                  alt={star.name}
+                  loading="lazy"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center text-lg font-bold text-muted-foreground">
+                  {star.name.charAt(0)}
+                </div>
+              )}
             </div>
             <div className="text-center">
               <p className="text-xs font-medium text-foreground group-hover:text-primary transition-colors md:text-sm">

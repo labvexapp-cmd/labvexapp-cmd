@@ -272,3 +272,27 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* ===== SHORTS FEED ===== */
+.shorts-feed {
+  scroll-snap-type: y mandatory;
+  overflow-y: scroll;
+  height: 100dvh;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+.shorts-feed::-webkit-scrollbar {
+  display: none;
+}
+
+.shorts-feed {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.shorts-item {
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  height: 100dvh;
+}

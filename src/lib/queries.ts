@@ -175,12 +175,81 @@ export async function getStars(): Promise<Star[]> {
 export async function getStarBySlug(slug: string): Promise<Star | null> {
   const { data, error } = await supabase
     .from("stars")
-    .select("id, name, slug, avatar_url, bio, video_count, view_count")
+    .select("id, name, slug, avatar_url, cover_url, bio, nationality, measurements, social_media, aliases, video_count, view_count")
     .eq("slug", slug)
     .eq("is_active", true)
     .single();
 
   if (error || !data) return null;
+  return data;
+}
+
+// Dikey videolar (shorts için)
+export async function getVerticalVideos(
+  limit = 8,
+  offset = 0
+): Promise<Video[]> {
+  const { data, error } = await supabase
+    .from("videos")
+    .select(VIDEO_SELECT)
+    .eq("status", "published")
+    .eq("orientation", "vertical")
+    .order("view_count", { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (error || !data) return [];
+  return data.map(mapVideo);
+}
+
+// Karışık feed (Load More pagination için)
+export async function getVideosFeed(
+  limit = 12,
+  offset = 0
+): Promise<Video[]> {
+  const { data, error } = await supabase
+    .from("videos")
+    .select(VIDEO_SELECT)
+    .eq("status", "published")
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (error || !data) return [];
+  return data.map(mapVideo);
+}
+
+// İlişkili starlar (aynı videolarda görünen diğer starlar)
+export async function getRelatedStars(
+  starId: string,
+  limit = 6
+): Promise<Star[]> {
+  // Bu star'ın videolarını bul
+  const { data: videoIds } = await supabase
+    .from("video_stars")
+    .select("video_id")
+    .eq("star_id", starId);
+
+  if (!videoIds || videoIds.length === 0) return [];
+
+  const ids = videoIds.map((v) => v.video_id);
+
+  // Bu videolardaki diğer starları bul
+  const { data: relatedStarIds } = await supabase
+    .from("video_stars")
+    .select("star_id")
+    .in("video_id", ids)
+    .neq("star_id", starId);
+
+  if (!relatedStarIds || relatedStarIds.length === 0) return [];
+
+  const uniqueStarIds = [...new Set(relatedStarIds.map((r) => r.star_id))];
+
+  const { data, error } = await supabase
+    .from("stars")
+    .select("id, name, slug, avatar_url, cover_url, bio, video_count, view_count")
+    .eq("is_active", true)
+    .in("id", uniqueStarIds.slice(0, limit));
+
+  if (error || !data) return [];
   return data;
 }
 

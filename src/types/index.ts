@@ -36,8 +36,13 @@ export interface Star {
   avatar_url?: string;
   cover_url?: string;
   bio?: string;
+  nationality?: string;
+  measurements?: Record<string, string>;
+  social_media?: Record<string, string>;
+  aliases?: string[];
   video_count: number;
   view_count: number;
+  follower_count?: number;
   translations?: Record<string, { name: string; bio?: string }>;
 }
 

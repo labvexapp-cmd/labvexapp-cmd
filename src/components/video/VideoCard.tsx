@@ -54,8 +54,15 @@ export function VideoCard({ video, priority = false }: VideoCardProps) {
           </div>
         )}
 
-        {/* Hover overlay */}
-        {isHovered && (
+        {/* Hover preview (animated webp from BunnyCDN) */}
+        {isHovered && video.preview_url && (
+          <img
+            src={video.preview_url}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        )}
+        {isHovered && !video.preview_url && (
           <div className="absolute inset-0 bg-black/20 transition-opacity" />
         )}
 
