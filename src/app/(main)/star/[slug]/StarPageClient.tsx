@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import {
   Heart,
@@ -10,6 +10,9 @@ import {
   ChevronDown,
   MapPin,
   ExternalLink,
+  Play,
+  Image,
+  Smartphone,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +21,7 @@ import { formatViewCount } from "@/lib/constants";
 import type { Star, Video } from "@/types";
 
 type SortOption = "popular" | "newest" | "longest" | "most-viewed";
-type TabKey = "videos" | "about";
+type TabKey = "videos" | "shorts" | "photos" | "about";
 
 interface StarPageClientProps {
   star: Star;
@@ -36,6 +39,16 @@ export function StarPageClient({
   const [showSort, setShowSort] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
 
+  // Videoları orientation'a göre ayır
+  const regularVideos = useMemo(
+    () => videos.filter((v) => v.orientation !== "vertical"),
+    [videos]
+  );
+  const shortsVideos = useMemo(
+    () => videos.filter((v) => v.orientation === "vertical"),
+    [videos]
+  );
+
   const sortLabels: Record<SortOption, string> = {
     popular: "Popüler",
     newest: "En Yeni",
@@ -43,20 +56,26 @@ export function StarPageClient({
     "most-viewed": "En Çok İzlenen",
   };
 
-  const sortedVideos = [...videos].sort((a, b) => {
-    switch (sortBy) {
-      case "newest":
-        return (
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
-      case "longest":
-        return b.duration - a.duration;
-      case "most-viewed":
-        return b.view_count - a.view_count;
-      default:
-        return b.like_count - a.like_count;
-    }
-  });
+  const sortVideos = (list: Video[]) =>
+    [...list].sort((a, b) => {
+      switch (sortBy) {
+        case "newest":
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        case "longest":
+          return b.duration - a.duration;
+        case "most-viewed":
+          return b.view_count - a.view_count;
+        default:
+          return b.like_count - a.like_count;
+      }
+    });
+
+  const tabs: { key: TabKey; label: string; icon: typeof Film; count?: number }[] = [
+    { key: "videos", label: "Videolar", icon: Play, count: regularVideos.length },
+    { key: "shorts", label: "Shorts", icon: Smartphone, count: shortsVideos.length },
+    { key: "photos", label: "Fotoğraflar", icon: Image, count: 0 },
+    { key: "about", label: "Hakkında", icon: Film },
+  ];
 
   return (
     <div className="mx-auto max-w-7xl">
@@ -98,14 +117,12 @@ export function StarPageClient({
               {star.name}
             </h1>
 
-            {/* Aliases */}
             {star.aliases && star.aliases.length > 0 && (
               <p className="mt-0.5 text-sm text-muted-foreground">
                 aka {star.aliases.join(", ")}
               </p>
             )}
 
-            {/* Stats row */}
             <div className="mt-2 flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground sm:justify-start">
               <span className="flex items-center gap-1.5">
                 <Film className="h-4 w-4 text-primary" />
@@ -141,7 +158,7 @@ export function StarPageClient({
         </div>
 
         {/* Short bio */}
-        {star.bio && activeTab === "videos" && (
+        {star.bio && activeTab !== "about" && (
           <p className="mt-3 text-sm text-muted-foreground line-clamp-2 max-w-2xl">
             {star.bio}
           </p>
@@ -150,89 +167,81 @@ export function StarPageClient({
 
       {/* Tabs */}
       <div className="border-b border-border px-4">
-        <div className="flex gap-1">
-          <button
-            onClick={() => setActiveTab("videos")}
-            className={`px-4 py-2.5 text-sm font-medium transition-colors ${
-              activeTab === "videos"
-                ? "border-b-2 border-primary text-primary"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Videolar
-          </button>
-          <button
-            onClick={() => setActiveTab("about")}
-            className={`px-4 py-2.5 text-sm font-medium transition-colors ${
-              activeTab === "about"
-                ? "border-b-2 border-primary text-primary"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Hakkında
-          </button>
+        <div className="no-scrollbar flex gap-1 overflow-x-auto">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`flex shrink-0 items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors ${
+                  isActive
+                    ? "border-b-2 border-primary text-primary"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+                {tab.label}
+                {tab.count !== undefined && (
+                  <span
+                    className={`ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${
+                      isActive
+                        ? "bg-primary/15 text-primary"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {/* Tab content */}
       <div className="px-4 py-4">
-        {activeTab === "videos" ? (
-          <>
-            {/* Sort bar */}
-            <div className="mb-4 flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                {sortedVideos.length} video
-              </p>
-              <div className="relative">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowSort(!showSort)}
-                  className="gap-1.5"
-                >
-                  <SlidersHorizontal className="h-4 w-4" />
-                  {sortLabels[sortBy]}
-                  <ChevronDown className="h-3 w-3" />
-                </Button>
-                {showSort && (
-                  <div className="absolute right-0 top-full z-10 mt-1 w-44 overflow-hidden rounded-lg border border-border bg-card shadow-xl">
-                    {(Object.keys(sortLabels) as SortOption[]).map((option) => (
-                      <button
-                        key={option}
-                        onClick={() => {
-                          setSortBy(option);
-                          setShowSort(false);
-                        }}
-                        className={`w-full px-3 py-2 text-left text-sm transition-colors hover:bg-secondary ${
-                          sortBy === option
-                            ? "bg-primary/10 text-primary"
-                            : "text-foreground"
-                        }`}
-                      >
-                        {sortLabels[option]}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Video grid */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:gap-4">
-              {sortedVideos.map((video) => (
-                <VideoCard key={video.id} video={video} />
-              ))}
-            </div>
-
-            {sortedVideos.length === 0 && (
-              <div className="py-12 text-center text-muted-foreground">
-                Henüz video bulunmuyor
-              </div>
-            )}
-          </>
-        ) : (
-          <AboutTab star={star} />
+        {/* Videos tab */}
+        {activeTab === "videos" && (
+          <VideoGrid
+            videos={sortVideos(regularVideos)}
+            sortBy={sortBy}
+            sortLabels={sortLabels}
+            showSort={showSort}
+            onSortChange={(s) => { setSortBy(s); setShowSort(false); }}
+            onToggleSort={() => setShowSort(!showSort)}
+            emptyMessage="Henüz video bulunmuyor"
+            columns="grid-cols-2 sm:grid-cols-3 md:grid-cols-4"
+          />
         )}
+
+        {/* Shorts tab */}
+        {activeTab === "shorts" && (
+          <VideoGrid
+            videos={sortVideos(shortsVideos)}
+            sortBy={sortBy}
+            sortLabels={sortLabels}
+            showSort={showSort}
+            onSortChange={(s) => { setSortBy(s); setShowSort(false); }}
+            onToggleSort={() => setShowSort(!showSort)}
+            emptyMessage="Henüz shorts bulunmuyor"
+            columns="grid-cols-3 sm:grid-cols-4 md:grid-cols-5"
+          />
+        )}
+
+        {/* Photos tab */}
+        {activeTab === "photos" && (
+          <div className="py-16 text-center">
+            <Image className="mx-auto h-12 w-12 text-muted-foreground/30" />
+            <p className="mt-3 text-muted-foreground">
+              Henüz fotoğraf bulunmuyor
+            </p>
+          </div>
+        )}
+
+        {/* About tab */}
+        {activeTab === "about" && <AboutTab star={star} />}
       </div>
 
       {/* Related Stars */}
@@ -279,11 +288,86 @@ export function StarPageClient({
   );
 }
 
+// ===== Reusable video grid with sort =====
+function VideoGrid({
+  videos,
+  sortBy,
+  sortLabels,
+  showSort,
+  onSortChange,
+  onToggleSort,
+  emptyMessage,
+  columns,
+}: {
+  videos: Video[];
+  sortBy: SortOption;
+  sortLabels: Record<SortOption, string>;
+  showSort: boolean;
+  onSortChange: (s: SortOption) => void;
+  onToggleSort: () => void;
+  emptyMessage: string;
+  columns: string;
+}) {
+  if (videos.length === 0) {
+    return (
+      <div className="py-12 text-center text-muted-foreground">
+        {emptyMessage}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {/* Sort bar */}
+      <div className="mb-4 flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          {videos.length} içerik
+        </p>
+        <div className="relative">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onToggleSort}
+            className="gap-1.5"
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            {sortLabels[sortBy]}
+            <ChevronDown className="h-3 w-3" />
+          </Button>
+          {showSort && (
+            <div className="absolute right-0 top-full z-10 mt-1 w-44 overflow-hidden rounded-lg border border-border bg-card shadow-xl">
+              {(Object.keys(sortLabels) as SortOption[]).map((option) => (
+                <button
+                  key={option}
+                  onClick={() => onSortChange(option)}
+                  className={`w-full px-3 py-2 text-left text-sm transition-colors hover:bg-secondary ${
+                    sortBy === option
+                      ? "bg-primary/10 text-primary"
+                      : "text-foreground"
+                  }`}
+                >
+                  {sortLabels[option]}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Grid */}
+      <div className={`grid gap-3 lg:gap-4 ${columns}`}>
+        {videos.map((video) => (
+          <VideoCard key={video.id} video={video} />
+        ))}
+      </div>
+    </>
+  );
+}
+
 // ===== Hakkında sekmesi =====
 function AboutTab({ star }: { star: Star }) {
   return (
     <div className="max-w-2xl space-y-6">
-      {/* Tam biyografi */}
       {star.bio && (
         <div>
           <h3 className="mb-2 text-sm font-semibold text-foreground">
@@ -295,7 +379,6 @@ function AboutTab({ star }: { star: Star }) {
         </div>
       )}
 
-      {/* Fiziksel bilgiler */}
       {star.measurements && Object.keys(star.measurements).length > 0 && (
         <div>
           <h3 className="mb-2 text-sm font-semibold text-foreground">
@@ -319,7 +402,6 @@ function AboutTab({ star }: { star: Star }) {
         </div>
       )}
 
-      {/* Aliases */}
       {star.aliases && star.aliases.length > 0 && (
         <div>
           <h3 className="mb-2 text-sm font-semibold text-foreground">
@@ -327,11 +409,7 @@ function AboutTab({ star }: { star: Star }) {
           </h3>
           <div className="flex flex-wrap gap-2">
             {star.aliases.map((alias) => (
-              <Badge
-                key={alias}
-                variant="secondary"
-                className="text-xs"
-              >
+              <Badge key={alias} variant="secondary" className="text-xs">
                 {alias}
               </Badge>
             ))}
@@ -339,7 +417,6 @@ function AboutTab({ star }: { star: Star }) {
         </div>
       )}
 
-      {/* Sosyal medya */}
       {star.social_media && Object.keys(star.social_media).length > 0 && (
         <div>
           <h3 className="mb-2 text-sm font-semibold text-foreground">
@@ -362,7 +439,6 @@ function AboutTab({ star }: { star: Star }) {
         </div>
       )}
 
-      {/* Milliyet */}
       {star.nationality && (
         <div>
           <h3 className="mb-2 text-sm font-semibold text-foreground">
@@ -372,7 +448,6 @@ function AboutTab({ star }: { star: Star }) {
         </div>
       )}
 
-      {/* No info */}
       {!star.bio &&
         !star.measurements &&
         !star.aliases &&
