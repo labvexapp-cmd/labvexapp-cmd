@@ -201,6 +201,36 @@ export async function getVerticalVideos(
   return data.map(mapVideo);
 }
 
+// Star'a ait dikey (shorts) videolar - star context shorts feed için
+export async function getStarVerticalVideos(
+  starIds: string[],
+  excludeVideoId: string,
+  limit = 19
+): Promise<Video[]> {
+  if (starIds.length === 0) return [];
+
+  const { data: rows } = await supabase
+    .from("video_stars")
+    .select("video_id")
+    .in("star_id", starIds);
+
+  if (!rows || rows.length === 0) return [];
+  const ids = [...new Set(rows.map((r) => r.video_id))];
+
+  const { data, error } = await supabase
+    .from("videos")
+    .select(VIDEO_SELECT)
+    .eq("status", "published")
+    .eq("orientation", "vertical")
+    .in("id", ids)
+    .neq("id", excludeVideoId)
+    .order("view_count", { ascending: false })
+    .limit(limit);
+
+  if (error || !data) return [];
+  return data.map(mapVideo);
+}
+
 // Karışık feed (Load More pagination için)
 export async function getVideosFeed(
   limit = 12,

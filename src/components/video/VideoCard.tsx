@@ -16,9 +16,13 @@ export function VideoCard({ video, priority = false }: VideoCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [imgError, setImgError] = useState(false);
 
+  const href = video.orientation === "vertical"
+    ? `/shorts/${video.slug}`
+    : `/video/${video.slug}`;
+
   return (
     <Link
-      href={`/video/${video.slug}`}
+      href={href}
       className="video-card-hover group block overflow-hidden rounded-xl"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
