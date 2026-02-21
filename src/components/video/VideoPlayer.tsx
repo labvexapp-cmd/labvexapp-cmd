@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Play, Pause, RotateCcw, RotateCw, Maximize2, Minimize2 } from "lucide-react";
+import { Play, Pause, RotateCcw, RotateCw } from "lucide-react";
 
 interface VideoPlayerProps {
   videoUrl?: string;
@@ -120,18 +120,6 @@ export function VideoPlayer({
       clearTimeout(timer);
     };
   }, [started]);
-
-  // Fullscreen toggle - kendi butonumuz ile container'ı fullscreen yap
-  const toggleFullscreen = useCallback(async () => {
-    if (!containerRef.current) return;
-    try {
-      if (document.fullscreenElement) {
-        await document.exitFullscreen();
-      } else {
-        await containerRef.current.requestFullscreen();
-      }
-    } catch {}
-  }, []);
 
   // Gesture handler
   const handleGesture = useCallback(
@@ -295,19 +283,6 @@ export function VideoPlayer({
           onClick={() => handleGesture("right")}
         />
       </div>
-
-      {/* Fullscreen butonu - her zaman görünür, sağ alt köşe */}
-      <button
-        onClick={toggleFullscreen}
-        className="absolute bottom-3 right-3 z-30 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 backdrop-blur-sm transition-opacity hover:bg-black/70"
-        aria-label={isFullscreen ? "Fullscreen'den çık" : "Fullscreen"}
-      >
-        {isFullscreen ? (
-          <Minimize2 className="h-5 w-5 text-white" />
-        ) : (
-          <Maximize2 className="h-5 w-5 text-white" />
-        )}
-      </button>
 
       {/* -5s animasyonu */}
       {seekAnim === "left" && (
